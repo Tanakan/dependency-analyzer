@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>問題分析 - Issues Analysis</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+        
+        .header {
+            background-color: #333;
+            color: white;
+            padding: 1rem;
+            text-align: center;
+        }
+        
+        .nav-buttons {
+            background-color: #444;
+            padding: 0.5rem;
+            text-align: center;
+        }
+        
+        .nav-buttons a {
+            color: white;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            margin: 0 0.5rem;
+            background-color: #555;
+            border-radius: 4px;
+            display: inline-block;
+        }
+        
+        .nav-buttons a:hover {
+            background-color: #666;
+        }
+        
+        .nav-buttons a.active {
+            background-color: #007bff;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .section {
+            background-color: white;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .section h2 {
+            margin-top: 0;
+            color: #333;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 0.5rem;
+        }
+        
+        .issue-item {
+            background-color: #f8f9fa;
+            padding: 0.75rem 1rem;
+            margin: 0.5rem 0;
+            border-radius: 4px;
+            border-left: 4px solid #dc3545;
+        }
+        
+        .circular-ref {
+            background-color: #fff3cd;
+            border-left: 4px solid #dc3545;
+        }
+        
+        .cycle-path {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-top: 0.5rem;
+            gap: 0.5rem;
+        }
+        
+        .cycle-item {
+            background-color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        
+        .cycle-arrow {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        
+        .unreferenced-item {
+            background-color: #f8f9fa;
+            padding: 0.75rem 1rem;
+            margin: 0.5rem 0;
+            border-radius: 4px;
+            border-left: 4px solid #ffc107;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .duplicate-item {
+            background-color: #f8f9fa;
+            padding: 0.75rem 1rem;
+            margin: 0.5rem 0;
+            border-radius: 4px;
+            border-left: 4px solid #17a2b8;
+        }
+        
+        .duplicate-projects {
+            margin-top: 0.5rem;
+            padding-left: 1rem;
+        }
+        
+        .duplicate-project {
+            margin: 0.25rem 0;
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        
+        .status-good {
+            background-color: #28a745;
+        }
+        
+        .status-warning {
+            background-color: #ffc107;
+            color: black;
+        }
+        
+        .status-danger {
+            background-color: #dc3545;
+        }
+        
+        .status-info {
+            background-color: #17a2b8;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #666;
+        }
+        
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 1rem;
+            border-radius: 4px;
+            margin: 1rem 0;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 2rem;
+            color: #666;
+        }
+        
+        .project-name {
+            font-weight: bold;
+            font-family: monospace;
+        }
+        
+        .project-path {
+            font-size: 12px;
+            color: #666;
+            margin-top: 0.25rem;
+        }
+        
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .summary-card {
+            background-color: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 8px;
+            text-align: center;
+            border: 2px solid transparent;
+        }
+        
+        .summary-card.good {
+            border-color: #28a745;
+        }
+        
+        .summary-card.warning {
+            border-color: #ffc107;
+        }
+        
+        .summary-card.danger {
+            border-color: #dc3545;
+        }
+        
+        .summary-card.info {
+            border-color: #17a2b8;
+        }
+        
+        .summary-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+        
+        .summary-status {
+            font-size: 24px;
+            margin: 0.5rem 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>問題分析 - Issues Analysis</h1>
+    </div>
+    
+    <div class="nav-buttons">
+        <a href="index.html">依存関係グラフ</a>
+        <a href="cohesion.html">凝集度分析</a>
+        <a href="issues.html" class="active">問題分析</a>
+    </div>
+    
+    <div class="container">
+        <div id="loading" class="loading">データを読み込み中...</div>
+        <div id="error" class="error" style="display: none;"></div>
+        
+        <div id="content" style="display: none;">
+            <div class="section">
+                <h2>問題サマリー</h2>
+                <div class="summary-grid" id="summary"></div>
+            </div>
+            
+            <div class="section">
+                <h2>循環参照</h2>
+                <div id="circular-references"></div>
+            </div>
+            
+            <div class="section">
+                <h2>参照されていないプロジェクト</h2>
+                <div id="unreferenced-projects"></div>
+            </div>
+            
+            <div class="section">
+                <h2>重複するArtifact ID</h2>
+                <div id="duplicate-artifacts"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function loadIssuesAnalysis() {
+            try {
+                const response = await fetch('/api/issues/analysis');
+                if (!response.ok) {
+                    throw new Error('データの取得に失敗しました');
+                }
+                
+                const data = await response.json();
+                displayAnalysis(data);
+                
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('content').style.display = 'block';
+            } catch (error) {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error').style.display = 'block';
+                document.getElementById('error').textContent = error.message;
+            }
+        }
+        
+        function displayAnalysis(data) {
+            displaySummary(data.statistics);
+            displayCircularReferences(data.circularReferences);
+            displayUnreferencedProjects(data.unreferencedProjects);
+            displayDuplicateArtifacts(data.duplicateArtifactIds);
+        }
+        
+        function displaySummary(stats) {
+            const circularStatus = stats.circularReferencesCount === 0 ? 'good' : 'danger';
+            const unreferencedStatus = stats.unreferencedProjectsCount === 0 ? 'good' : 
+                                     stats.unreferencedProjectsCount < 10 ? 'warning' : 'danger';
+            const duplicateStatus = stats.duplicateArtifactIdsCount === 0 ? 'good' : 'info';
+            
+            const html = `
+                <div class="summary-card ${circularStatus}">
+                    <div class="summary-title">循環参照</div>
+                    <div class="summary-status">
+                        ${stats.circularReferencesCount === 0 ? 
+                          '<span style="color: #28a745;">✓ なし</span>' : 
+                          `<span style="color: #dc3545;">${stats.circularReferencesCount}件</span>`}
+                    </div>
+                </div>
+                <div class="summary-card ${unreferencedStatus}">
+                    <div class="summary-title">未参照プロジェクト</div>
+                    <div class="summary-status">
+                        ${stats.unreferencedProjectsCount === 0 ? 
+                          '<span style="color: #28a745;">✓ なし</span>' : 
+                          `<span style="color: #ff9800;">${stats.unreferencedProjectsCount}件</span>`}
+                    </div>
+                </div>
+                <div class="summary-card ${duplicateStatus}">
+                    <div class="summary-title">重複Artifact ID</div>
+                    <div class="summary-status">
+                        ${stats.duplicateArtifactIdsCount === 0 ? 
+                          '<span style="color: #28a745;">✓ なし</span>' : 
+                          `<span style="color: #17a2b8;">${stats.duplicateArtifactIdsCount}件</span>`}
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('summary').innerHTML = html;
+        }
+        
+        function displayCircularReferences(circularRefs) {
+            const container = document.getElementById('circular-references');
+            
+            if (circularRefs.length === 0) {
+                container.innerHTML = '<div class="empty-state">循環参照は検出されませんでした ✓</div>';
+                return;
+            }
+            
+            let html = '';
+            circularRefs.forEach(ref => {
+                html += '<div class="issue-item circular-ref">';
+                html += '<div class="cycle-path">';
+                
+                ref.cycle.forEach((project, i) => {
+                    const artifactId = project.split(':')[1];
+                    html += `<span class="cycle-item">${artifactId}</span>`;
+                    if (i < ref.cycle.length - 1) {
+                        html += '<span class="cycle-arrow">→</span>';
+                    }
+                });
+                
+                html += '</div></div>';
+            });
+            
+            container.innerHTML = html;
+        }
+        
+        function displayUnreferencedProjects(unreferenced) {
+            const container = document.getElementById('unreferenced-projects');
+            
+            if (unreferenced.length === 0) {
+                container.innerHTML = '<div class="empty-state">すべてのプロジェクトが参照されています ✓</div>';
+                return;
+            }
+            
+            let html = '';
+            unreferenced.forEach(project => {
+                const isApp = project.artifactId.includes('app') || 
+                             project.artifactId.includes('portal') || 
+                             project.artifactId.includes('gateway');
+                
+                html += `
+                    <div class="unreferenced-item">
+                        <div>
+                            <div class="project-name">${project.artifactId}</div>
+                            <div class="project-path">${project.path || ''}</div>
+                        </div>
+                        ${isApp ? '<span class="status-indicator status-info">App</span>' : ''}
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+        
+        function displayDuplicateArtifacts(duplicates) {
+            const container = document.getElementById('duplicate-artifacts');
+            
+            if (duplicates.length === 0) {
+                container.innerHTML = '<div class="empty-state">重複するArtifact IDは検出されませんでした ✓</div>';
+                return;
+            }
+            
+            let html = '';
+            duplicates.forEach(dup => {
+                html += `
+                    <div class="duplicate-item">
+                        <div class="project-name">${dup.artifactId}</div>
+                        <div class="duplicate-projects">
+                `;
+                
+                dup.projects.forEach(project => {
+                    html += `
+                        <div class="duplicate-project">
+                            ${project.groupId} - ${project.path || 'N/A'}
+                        </div>
+                    `;
+                });
+                
+                html += '</div></div>';
+            });
+            
+            container.innerHTML = html;
+        }
+        
+        // Load analysis on page load
+        loadIssuesAnalysis();
+    </script>
+</body>
+</html>

@@ -1,0 +1,291 @@
+package com.example.dependencies.analyzer.cli;
+
+import com.example.dependencies.analyzer.analyzer.InHouseProjectDetector;
+import com.example.dependencies.analyzer.model.Dependency;
+import com.example.dependencies.analyzer.model.Project;
+import com.example.dependencies.analyzer.model.ProjectType;
+import com.example.dependencies.analyzer.parser.GradleBuildParser;
+import com.example.dependencies.analyzer.parser.MavenPomParser;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+public class DependencyAnalyzerCLI {
+    private static final Logger logger = LoggerFactory.getLogger(DependencyAnalyzerCLI.class);
+    private static final ObjectMapper mapper = new ObjectMapper();
+    
+    private final MavenPomParser mavenParser = new MavenPomParser();
+    private final GradleBuildParser gradleParser = new GradleBuildParser();
+    
+    static {
+        mapper.enable(SerializationFeature.INDENT_OUTPUT);
+    }
+    
+    public static void main(String[] args) {
+        if (args.length != 1) {
+            System.err.println("Usage: java -jar dependencies-analyzer.jar <directory-path>");
+            System.exit(1);
+        }
+        
+        String directoryPath = args[0];
+        DependencyAnalyzerCLI analyzer = new DependencyAnalyzerCLI();
+        
+        try {
+            analyzer.analyzeDependencies(directoryPath);
+        } catch (Exception e) {
+            logger.error("Failed to analyze dependencies", e);
+            System.exit(1);
+        }
+    }
+    
+    public void analyzeDependencies(String directoryPath) throws IOException {
+        Path rootPath = Paths.get(directoryPath);
+        
+        if (!Files.exists(rootPath) || !Files.isDirectory(rootPath)) {
+            throw new IllegalArgumentException("Invalid directory path: " + directoryPath);
+        }
+        
+        logger.info("Scanning for Git repositories in: {}", directoryPath);
+        
+        List<Path> gitRepositories = findGitRepositories(rootPath);
+        logger.info("Found {} Git repositories", gitRepositories.size());
+        
+        // Collect all projects
+        List<Project> allProjects = new ArrayList<>();
+        
+        for (Path repo : gitRepositories) {
+            List<Project> repoProjects = analyzeRepository(repo);
+            allProjects.addAll(repoProjects);
+        }
+        
+        logger.info("Total projects found: {}", allProjects.size());
+        
+        // Detect in-house dependencies
+        InHouseProjectDetector detector = new InHouseProjectDetector(allProjects);
+        Map<Project, List<Dependency>> inHouseDependencies = detector.buildInHouseDependencyMap();
+        
+        // Generate and save analysis result
+        Map<String, Object> analysisResult = generateAnalysisResult(allProjects, inHouseDependencies);
+        saveAnalysisResult(analysisResult);
+        
+        // Print summary
+        printSummary(analysisResult);
+    }
+    
+    private List<Path> findGitRepositories(Path rootPath) throws IOException {
+        try (Stream<Path> paths = Files.walk(rootPath)) {
+            return paths
+                .filter(Files::isDirectory)
+                .filter(path -> Files.exists(path.resolve(".git")))
+                .collect(Collectors.toList());
+        }
+    }
+    
+    private List<Project> analyzeRepository(Path repositoryPath) {
+        logger.info("Analyzing repository: {}", repositoryPath);
+        List<Project> projects = new ArrayList<>();
+        
+        try {
+            // Find and parse Maven projects
+            List<Path> pomFiles = findPomFiles(repositoryPath);
+            for (Path pomFile : pomFiles) {
+                try {
+                    Project project = mavenParser.parse(pomFile);
+                    projects.add(project);
+                } catch (Exception e) {
+                    logger.warn("Failed to parse POM file: " + pomFile + ", creating placeholder", e);
+                    // Create a placeholder project for failed parsing
+                    Project placeholder = createPlaceholderProject(pomFile, ProjectType.MAVEN);
+                    projects.add(placeholder);
+                }
+            }
+            
+            // Find and parse Gradle projects
+            List<Path> gradleFiles = findGradleFiles(repositoryPath);
+            for (Path gradleFile : gradleFiles) {
+                try {
+                    Project project = gradleParser.parse(gradleFile);
+                    projects.add(project);
+                } catch (Exception e) {
+                    logger.warn("Failed to parse Gradle file: " + gradleFile + ", creating placeholder", e);
+                    // Create a placeholder project for failed parsing
+                    Project placeholder = createPlaceholderProject(gradleFile, ProjectType.GRADLE);
+                    projects.add(placeholder);
+                }
+            }
+            
+            logger.info("  Found {} Maven projects", pomFiles.size());
+            logger.info("  Found {} Gradle projects", gradleFiles.size());
+            
+        } catch (IOException e) {
+            logger.error("Error analyzing repository: " + repositoryPath, e);
+        }
+        
+        return projects;
+    }
+    
+    private List<Path> findPomFiles(Path repositoryPath) throws IOException {
+        try (Stream<Path> paths = Files.walk(repositoryPath)) {
+            return paths
+                .filter(Files::isRegularFile)
+                .filter(path -> path.getFileName().toString().equals("pom.xml"))
+                .collect(Collectors.toList());
+        }
+    }
+    
+    private List<Path> findGradleFiles(Path repositoryPath) throws IOException {
+        try (Stream<Path> paths = Files.walk(repositoryPath)) {
+            return paths
+                .filter(Files::isRegularFile)
+                .filter(path -> {
+                    String fileName = path.getFileName().toString();
+                    return fileName.equals("build.gradle") || fileName.equals("build.gradle.kts");
+                })
+                .collect(Collectors.toList());
+        }
+    }
+    
+    private Project createPlaceholderProject(Path buildFile, ProjectType type) {
+        String fileName = buildFile.getFileName().toString();
+        Path projectDir = buildFile.getParent();
+        String artifactId = projectDir.getFileName().toString();
+        
+        // Try to guess group ID from parent directories
+        String groupId = "unknown.group";
+        if (projectDir.getParent() != null) {
+            String parentName = projectDir.getParent().getFileName().toString();
+            if (!parentName.equals("test-projects")) {
+                groupId = "com.example." + parentName;
+            }
+        }
+        
+        Project project = new Project(groupId, artifactId, "unknown", buildFile, type);
+        
+        // Set packaging based on file type
+        if (type == ProjectType.MAVEN) {
+            project.setPackaging("jar"); // Default for Maven
+        } else if (type == ProjectType.GRADLE) {
+            project.setPackaging("jar"); // Default for Gradle
+        }
+        
+        logger.warn("Created placeholder project for: {} - {}", buildFile, project.getFullName());
+        return project;
+    }
+    
+    private Map<String, Object> generateAnalysisResult(List<Project> allProjects, Map<Project, List<Dependency>> dependencyMap) {
+        Map<String, Object> result = new HashMap<>();
+        
+        // Add metadata
+        result.put("analysisDate", new Date().toString());
+        result.put("version", "1.0");
+        
+        // Generate graph data
+        Map<String, Object> graphData = generateGraphData(allProjects, dependencyMap);
+        result.putAll(graphData);
+        
+        return result;
+    }
+    
+    private Map<String, Object> generateGraphData(List<Project> allProjects, Map<Project, List<Dependency>> dependencyMap) {
+        Map<String, Object> result = new HashMap<>();
+        ArrayNode nodes = mapper.createArrayNode();
+        ArrayNode links = mapper.createArrayNode();
+        
+        // Create a map to track node indices
+        Map<String, Integer> nodeIndices = new HashMap<>();
+        
+        // Note: We don't add dependent projects that are not in our scan
+        // This ensures we only show projects that actually exist in the repositories
+        
+        // Create nodes
+        for (int i = 0; i < allProjects.size(); i++) {
+            Project project = allProjects.get(i);
+            String key = project.getGroupId() + ":" + project.getArtifactId();
+            nodeIndices.put(key, i);
+            
+            ObjectNode node = mapper.createObjectNode();
+            node.put("id", key);
+            node.put("name", project.getArtifactId());
+            node.put("version", project.getVersion());
+            node.put("group", project.getGroupId());
+            node.put("type", project.getType() != null ? project.getType().getDisplayName() : "Unknown");
+            node.put("packaging", project.getPackaging());
+            
+            // Determine node group for coloring
+            String nodeGroup = "default";
+            if (project.getProjectPath() != null) {
+                Path repoPath = project.getProjectPath();
+                // Find the git repository root
+                while (repoPath != null && !Files.exists(repoPath.resolve(".git"))) {
+                    repoPath = repoPath.getParent();
+                }
+                if (repoPath != null) {
+                    nodeGroup = repoPath.getFileName().toString();
+                }
+            }
+            node.put("nodeGroup", nodeGroup);
+            
+            nodes.add(node);
+        }
+        
+        // Create links
+        for (Map.Entry<Project, List<Dependency>> entry : dependencyMap.entrySet()) {
+            Project source = entry.getKey();
+            String sourceKey = source.getGroupId() + ":" + source.getArtifactId();
+            
+            for (Dependency dep : entry.getValue()) {
+                String targetKey = dep.getGroupId() + ":" + dep.getArtifactId();
+                
+                // Use node IDs instead of indices for D3.js
+                ObjectNode link = mapper.createObjectNode();
+                link.put("source", sourceKey);
+                link.put("target", targetKey);
+                link.put("value", 1);
+                links.add(link);
+            }
+        }
+        
+        result.put("nodes", nodes);
+        result.put("links", links);
+        
+        // Add statistics
+        Map<String, Object> stats = new HashMap<>();
+        stats.put("totalProjects", allProjects.size());
+        stats.put("totalDependencies", links.size());
+        result.put("stats", stats);
+        
+        return result;
+    }
+    
+    private void saveAnalysisResult(Map<String, Object> analysisResult) throws IOException {
+        File outputFile = new File("dependencies-analysis.json");
+        mapper.writeValue(outputFile, analysisResult);
+        logger.info("Analysis result saved to: {}", outputFile.getAbsolutePath());
+    }
+    
+    private void printSummary(Map<String, Object> analysisResult) {
+        @SuppressWarnings("unchecked")
+        Map<String, Object> stats = (Map<String, Object>) analysisResult.get("stats");
+        
+        System.out.println("\n=== Analysis Summary ===");
+        System.out.println("Total projects found: " + stats.get("totalProjects"));
+        System.out.println("Total in-house dependencies: " + stats.get("totalDependencies"));
+        System.out.println("\nAnalysis result saved to: dependencies-analysis.json");
+        System.out.println("\nTo visualize the results:");
+        System.out.println("1. Run: mvn spring-boot:run");
+        System.out.println("2. Open: http://localhost:8080");
+        System.out.println("3. Upload the dependencies-analysis.json file");
+    }
+}
