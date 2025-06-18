@@ -45,10 +45,9 @@ public class MigrationAnalyzer {
     /**
      * Analyzes cohesion within a group of projects
      * High cohesion = projects in the group depend on each other more than external projects
+     * For single-project repositories, cohesion = 0 if it has any external dependencies
      */
     public double calculateCohesion(Set<String> projectGroup) {
-        if (projectGroup.size() <= 1) return 1.0;
-        
         int internalConnections = 0;
         int externalConnections = 0;
         
@@ -64,7 +63,7 @@ public class MigrationAnalyzer {
         }
         
         int totalConnections = internalConnections + externalConnections;
-        if (totalConnections == 0) return 1.0;
+        if (totalConnections == 0) return 1.0; // No dependencies = perfect cohesion
         
         return (double) internalConnections / totalConnections;
     }

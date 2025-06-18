@@ -45,21 +45,14 @@ public class MigrationController {
                 analysis.setProjectCount(repoProjects.size());
                 analysis.setProjects(repoProjects);
                 
-                if (repoProjects.size() > 1) {
-                    // 複数プロジェクトの場合のみ凝集度を計算
-                    double cohesion = migrationAnalyzer.calculateCohesion(repoProjects);
-                    analysis.setCohesionScore(cohesion);
-                    
-                    // 内部・外部依存関係のカウント
-                    int[] counts = countDependencies(allProjects, repoProjects);
-                    analysis.setInternalDependencies(counts[0]);
-                    analysis.setExternalDependencies(counts[1]);
-                } else {
-                    // 単一プロジェクトの場合は凝集度1.0
-                    analysis.setCohesionScore(1.0);
-                    analysis.setInternalDependencies(0);
-                    analysis.setExternalDependencies(countSingleProjectDependencies(allProjects, repoProjects.iterator().next()));
-                }
+                // 内部・外部依存関係のカウント
+                int[] counts = countDependencies(allProjects, repoProjects);
+                analysis.setInternalDependencies(counts[0]);
+                analysis.setExternalDependencies(counts[1]);
+                
+                // 凝集度を計算（単一プロジェクトでも正しく計算）
+                double cohesion = migrationAnalyzer.calculateCohesion(repoProjects);
+                analysis.setCohesionScore(cohesion);
                 
                 analyses.add(analysis);
             }
@@ -271,47 +264,6 @@ public class MigrationController {
         return new int[]{internal, external};
     }
     
-    private int countSingleProjectDependencies(List<Project> allProjects, String projectName) {
-        Map<String, Project> projectMap = new HashMap<>();
-        Map<String, Project> versionlessMap = new HashMap<>();
-        for (Project p : allProjects) {
-            // フルネームでマップに追加
-            projectMap.put(p.getFullName(), p);
-            String versionlessKey = p.getGroupId() + ":" + p.getArtifactId();
-            // 同じキーが既に存在する場合はログ出力
-            if (versionlessMap.containsKey(versionlessKey)) {
-                logger.warn("Duplicate groupId:artifactId found: {} in {} and {}", 
-                    versionlessKey, 
-                    versionlessMap.get(versionlessKey).getProjectPath(), 
-                    p.getProjectPath());
-            } else {
-                versionlessMap.put(versionlessKey, p);
-            }
-        }
-        // versionlessMapの内容をprojectMapに追加
-        projectMap.putAll(versionlessMap);
-        
-        Project project = projectMap.get(projectName);
-        if (project == null) return 0;
-        
-        int count = 0;
-        for (Dependency dep : project.getDependencies()) {
-            // まずバージョン付きで探す
-            String depFullName = dep.getGroupId() + ":" + dep.getArtifactId() + ":" + dep.getVersion();
-            Project depProject = projectMap.get(depFullName);
-            
-            // バージョン付きで見つからない場合はバージョンなしで探す
-            if (depProject == null) {
-                String depNameWithoutVersion = dep.getGroupId() + ":" + dep.getArtifactId();
-                depProject = projectMap.get(depNameWithoutVersion);
-            }
-            
-            if (depProject != null) {
-                count++;
-            }
-        }
-        return count;
-    }
     
     private Map<String, Double> calculateRepositoryCohesion(List<Project> projects, MigrationAnalyzer analyzer) {
         Map<String, Double> cohesionScores = new HashMap<>();
