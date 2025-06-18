@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>依存関係アナライザー - Dependencies Analyzer</title>
+    <title>Dependencies Analyzer</title>
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
         body {
@@ -337,24 +337,24 @@
 </head>
 <body>
     <div class="header">
-        <h1>依存関係アナライザー - Dependencies Analyzer</h1>
+        <h1>Dependencies Analyzer</h1>
     </div>
     
     <div class="nav-buttons">
-        <a href="index.html" class="active">依存関係グラフ</a>
-        <a href="cohesion.html">凝集度分析</a>
-        <a href="issues.html">問題分析</a>
+        <a href="index.html" class="active">Dependency Graph</a>
+        <a href="cohesion.html">Cohesion Analysis</a>
+        <a href="issues.html">Issues Analysis</a>
     </div>
     
     <div class="input-section">
-        <h3>依存関係解析結果</h3>
+        <h3>Dependency Analysis Results</h3>
         <div style="margin-top: 10px; font-size: 14px; color: #666;">
-            dependencies-analysis.json ファイルから自動的に読み込まれています
+            Automatically loaded from dependencies-analysis.json file
         </div>
     </div>
     
     <div class="loading">
-        <p>解析中...</p>
+        <p>Analyzing...</p>
     </div>
     
     <div class="error" id="errorMessage"></div>
@@ -362,12 +362,12 @@
     <div class="container" id="graphContainer">
         <div class="sidebar">
             <div class="info-section">
-                <h3>統計情報</h3>
+                <h3>Statistics</h3>
                 <div id="stats"></div>
             </div>
             
             <div class="info-section">
-                <h3>プロジェクト一覧</h3>
+                <h3>Project List</h3>
                 <div id="project-list"></div>
             </div>
         </div>
@@ -376,7 +376,7 @@
             <svg id="graph"></svg>
             <div class="tooltip"></div>
             <div class="legend">
-                <h4 style="margin-top: 0; margin-bottom: 10px;">パッケージタイプ</h4>
+                <h4 style="margin-top: 0; margin-bottom: 10px;">Package Type</h4>
                 <div class="legend-item">
                     <svg class="legend-symbol" viewBox="0 0 30 30">
                         <circle cx="15" cy="15" r="12" fill="#7f7f7f" stroke="#4ecdc4" stroke-width="2"/>
@@ -394,7 +394,7 @@
     </div>
     
     <div class="centering-indicator" id="centeringIndicator">
-        フィルタした箇所に移動中...
+        Navigating to filtered nodes...
     </div>
     
     <script>
@@ -402,7 +402,7 @@
         let currentData = null;
         let selectedProject = null;
         
-        // ページ読み込み時に自動的にデータを読み込む
+        // Automatically load data when page loads
         window.addEventListener('DOMContentLoaded', function() {
             loadAnalysisData();
         });
@@ -415,7 +415,7 @@
             fetch('/api/dependencies/data')
             .then(response => {
                 if (!response.ok) {
-                    throw new Error('データの読み込みに失敗しました');
+                    throw new Error('Failed to load data');
                 }
                 return response.json();
             })
@@ -431,7 +431,7 @@
             })
             .catch(error => {
                 document.querySelector('.loading').style.display = 'none';
-                showError('エラーが発生しました: ' + error.message);
+                showError('Error occurred: ' + error.message);
             });
         }
         
@@ -616,10 +616,10 @@
             const stats = document.getElementById("stats");
             stats.innerHTML = `
                 <div class="project-item">
-                    <strong>総プロジェクト数:</strong> ${data.stats.totalProjects}
+                    <strong>Total Projects:</strong> ${data.stats.totalProjects}
                 </div>
                 <div class="project-item">
-                    <strong>総依存関係数:</strong> ${data.stats.totalDependencies}
+                    <strong>Total Dependencies:</strong> ${data.stats.totalDependencies}
                 </div>
             `;
             
@@ -636,7 +636,7 @@
             
             let projectHtml = "";
             if (selectedProject) {
-                projectHtml = '<button class="clear-filter" onclick="clearFilter()">フィルタをクリア</button>';
+                projectHtml = '<button class="clear-filter" onclick="clearFilter()">Clear Filter</button>';
             }
             
             // Sort repositories by name

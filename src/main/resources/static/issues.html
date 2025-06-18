@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>問題分析 - Issues Analysis</title>
+    <title>Issues Analysis</title>
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
         body {
@@ -231,37 +231,37 @@
 </head>
 <body>
     <div class="header">
-        <h1>問題分析 - Issues Analysis</h1>
+        <h1>Issues Analysis</h1>
     </div>
     
     <div class="nav-buttons">
-        <a href="index.html">依存関係グラフ</a>
-        <a href="cohesion.html">凝集度分析</a>
-        <a href="issues.html" class="active">問題分析</a>
+        <a href="index.html">Dependency Graph</a>
+        <a href="cohesion.html">Cohesion Analysis</a>
+        <a href="issues.html" class="active">Issues Analysis</a>
     </div>
     
     <div class="container">
-        <div id="loading" class="loading">データを読み込み中...</div>
+        <div id="loading" class="loading">Loading data...</div>
         <div id="error" class="error" style="display: none;"></div>
         
         <div id="content" style="display: none;">
             <div class="section">
-                <h2>問題サマリー</h2>
+                <h2>Issues Summary</h2>
                 <div class="summary-grid" id="summary"></div>
             </div>
             
             <div class="section">
-                <h2>循環参照</h2>
+                <h2>Circular References</h2>
                 <div id="circular-references"></div>
             </div>
             
             <div class="section">
-                <h2>参照されていないプロジェクト</h2>
+                <h2>Unreferenced Projects</h2>
                 <div id="unreferenced-projects"></div>
             </div>
             
             <div class="section">
-                <h2>重複するArtifact ID</h2>
+                <h2>Duplicate Artifact IDs</h2>
                 <div id="duplicate-artifacts"></div>
             </div>
         </div>
@@ -272,7 +272,7 @@
             try {
                 const response = await fetch('/api/issues/analysis');
                 if (!response.ok) {
-                    throw new Error('データの取得に失敗しました');
+                    throw new Error('Failed to load data');
                 }
                 
                 const data = await response.json();
@@ -302,27 +302,27 @@
             
             const html = `
                 <div class="summary-card ${circularStatus}">
-                    <div class="summary-title">循環参照</div>
+                    <div class="summary-title">Circular References</div>
                     <div class="summary-status">
                         ${stats.circularReferencesCount === 0 ? 
-                          '<span style="color: #28a745;">✓ なし</span>' : 
-                          `<span style="color: #dc3545;">${stats.circularReferencesCount}件</span>`}
+                          '<span style="color: #28a745;">✓ None</span>' : 
+                          `<span style="color: #dc3545;">${stats.circularReferencesCount} found</span>`}
                     </div>
                 </div>
                 <div class="summary-card ${unreferencedStatus}">
-                    <div class="summary-title">未参照プロジェクト</div>
+                    <div class="summary-title">Unreferenced Projects</div>
                     <div class="summary-status">
                         ${stats.unreferencedProjectsCount === 0 ? 
-                          '<span style="color: #28a745;">✓ なし</span>' : 
-                          `<span style="color: #ff9800;">${stats.unreferencedProjectsCount}件</span>`}
+                          '<span style="color: #28a745;">✓ None</span>' : 
+                          `<span style="color: #ff9800;">${stats.unreferencedProjectsCount} found</span>`}
                     </div>
                 </div>
                 <div class="summary-card ${duplicateStatus}">
-                    <div class="summary-title">重複Artifact ID</div>
+                    <div class="summary-title">Duplicate Artifact IDs</div>
                     <div class="summary-status">
                         ${stats.duplicateArtifactIdsCount === 0 ? 
-                          '<span style="color: #28a745;">✓ なし</span>' : 
-                          `<span style="color: #17a2b8;">${stats.duplicateArtifactIdsCount}件</span>`}
+                          '<span style="color: #28a745;">✓ None</span>' : 
+                          `<span style="color: #17a2b8;">${stats.duplicateArtifactIdsCount} found</span>`}
                     </div>
                 </div>
             `;
@@ -334,7 +334,7 @@
             const container = document.getElementById('circular-references');
             
             if (circularRefs.length === 0) {
-                container.innerHTML = '<div class="empty-state">循環参照は検出されませんでした ✓</div>';
+                container.innerHTML = '<div class="empty-state">No circular references detected ✓</div>';
                 return;
             }
             
@@ -361,7 +361,7 @@
             const container = document.getElementById('unreferenced-projects');
             
             if (unreferenced.length === 0) {
-                container.innerHTML = '<div class="empty-state">すべてのプロジェクトが参照されています ✓</div>';
+                container.innerHTML = '<div class="empty-state">All projects are referenced ✓</div>';
                 return;
             }
             
@@ -389,7 +389,7 @@
             const container = document.getElementById('duplicate-artifacts');
             
             if (duplicates.length === 0) {
-                container.innerHTML = '<div class="empty-state">重複するArtifact IDは検出されませんでした ✓</div>';
+                container.innerHTML = '<div class="empty-state">No duplicate Artifact IDs detected ✓</div>';
                 return;
             }
             

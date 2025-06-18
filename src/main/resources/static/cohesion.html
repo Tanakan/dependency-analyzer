@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>凝集度分析 - Cohesion Analysis</title>
-    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <title>Cohesion Analysis</title>
+    <!-- d3.js removed - no longer needed for charts -->
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -65,11 +65,11 @@
             padding-bottom: 0.5rem;
         }
         
-        #cohesionChart {
+        /* #cohesionChart {
             width: 100%;
             height: 400px;
             margin-top: 1rem;
-        }
+        } */
         
         .cohesion-item {
             display: flex;
@@ -133,24 +133,7 @@
             margin: 1rem 0;
         }
         
-        .legend {
-            display: flex;
-            justify-content: center;
-            margin-top: 1rem;
-            gap: 2rem;
-        }
-        
-        .legend-item {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        
-        .legend-color {
-            width: 20px;
-            height: 20px;
-            border-radius: 3px;
-        }
+        /* Legend styles removed - no longer needed */
         
         .repository-group {
             margin-top: 1.5rem;
@@ -160,57 +143,115 @@
             color: #495057;
             margin-bottom: 0.5rem;
         }
+        
+        .details-section {
+            margin-top: 2rem;
+            max-height: 600px;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+        
+        /* Custom scrollbar for details section */
+        .details-section::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .details-section::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+        
+        .details-section::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+        
+        .details-section::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        
+        .detail-item {
+            background-color: #f8f9fa;
+            padding: 1rem;
+            margin: 0.5rem 0;
+            border-radius: 4px;
+            border-left: 4px solid #007bff;
+        }
+        
+        .detail-item.low-cohesion {
+            border-left-color: #dc3545;
+        }
+        
+        .detail-item.medium-cohesion {
+            border-left-color: #ffc107;
+        }
+        
+        .detail-item.high-cohesion {
+            border-left-color: #28a745;
+        }
+        
+        .repository-name {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+        
+        .projects-list {
+            margin-top: 0.5rem;
+            padding-left: 1rem;
+        }
+        
+        .project-item {
+            margin: 0.25rem 0;
+            font-size: 13px;
+            color: #666;
+        }
+        
+        .dependency-stats {
+            margin-top: 0.5rem;
+            font-size: 14px;
+        }
+        
+        .stat-item {
+            display: inline-block;
+            margin-right: 1rem;
+        }
     </style>
 </head>
 <body>
     <div class="header">
-        <h1>凝集度分析 - Cohesion Analysis</h1>
+        <h1>Cohesion Analysis</h1>
     </div>
     
     <div class="nav-buttons">
-        <a href="index.html">依存関係グラフ</a>
-        <a href="cohesion.html" class="active">凝集度分析</a>
-        <a href="issues.html">問題分析</a>
+        <a href="index.html">Dependency Graph</a>
+        <a href="cohesion.html" class="active">Cohesion Analysis</a>
+        <a href="issues.html">Issues Analysis</a>
     </div>
     
     <div class="container">
         <div class="section">
-            <h2>リポジトリ凝集度</h2>
-            <div id="cohesionChart"></div>
-            <div class="legend">
-                <div class="legend-item">
-                    <div class="legend-color" style="background-color: #28a745;"></div>
-                    <span>高凝集度 (>0.7) - 良好</span>
-                </div>
-                <div class="legend-item">
-                    <div class="legend-color" style="background-color: #ffc107;"></div>
-                    <span>中凝集度 (0.4-0.7) - 要検討</span>
-                </div>
-                <div class="legend-item">
-                    <div class="legend-color" style="background-color: #dc3545;"></div>
-                    <span>低凝集度 (<0.4) - 分割推奨</span>
-                </div>
-            </div>
-            <div id="cohesionList" style="margin-top: 2rem;"></div>
+            <h2>Repository Cohesion</h2>
+            <div id="cohesionList"></div>
         </div>
         
         <div class="section">
-            <h2>参照されていないプロジェクト</h2>
-            <p style="color: #666; font-size: 14px;">他のプロジェクトから依存されていないプロジェクトの一覧です。WAR ファイルなどのエントリーポイントは除外されています。</p>
+            <h2>Unreferenced Projects</h2>
+            <p style="color: #666; font-size: 14px;">List of projects that are not referenced by other projects. Entry points such as WAR files are excluded.</p>
             <div id="unusedProjects">
-                <div class="loading">読み込み中...</div>
+                <div class="loading">Loading...</div>
             </div>
         </div>
     </div>
     
     <script>
-        // ページ読み込み時にデータを取得
+        // Load data when page loads
         window.addEventListener('DOMContentLoaded', function() {
             loadAnalysis();
         });
         
         function loadAnalysis() {
-            // 詳細なリポジトリ凝集度分析を取得
+            // Get detailed repository cohesion analysis
             fetch('/api/migration/repository-cohesion')
                 .then(response => {
                     if (!response.ok) {
@@ -223,11 +264,11 @@
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    document.getElementById('cohesionChart').innerHTML = 
-                        '<div class="error">凝集度分析の読み込みに失敗しました: ' + error.message + '</div>';
+                    document.getElementById('cohesionList').innerHTML = 
+                        '<div class="error">Failed to load cohesion analysis: ' + error.message + '</div>';
                 });
             
-            // 未使用プロジェクトを取得
+            // Get unused projects
             fetch('/api/migration/unused-dependencies')
                 .then(response => {
                     if (!response.ok) {
@@ -241,161 +282,119 @@
                 .catch(error => {
                     console.error('Error:', error);
                     document.getElementById('unusedProjects').innerHTML = 
-                        '<div class="error">未使用プロジェクトの読み込みに失敗しました: ' + error.message + '</div>';
+                        '<div class="error">Failed to load unused projects: ' + error.message + '</div>';
                 });
         }
         
         function displayRepositoryCohesion(data) {
             const analyses = data.analyses;
             
-            // サマリー情報を表示
-            const container = document.getElementById('cohesionChart');
+            // Display detail list with summary
+            displayCohesionDetailList(analyses, data);
+        }
+        
+        // displayCohesionChart function removed - bar chart no longer displayed
+        
+        function displayCohesionDetailList(analyses, data) {
+            const container = document.getElementById('cohesionList');
+            
+            // Add summary first
             const summaryHtml = `
                 <div style="margin-bottom: 1rem; padding: 1rem; background-color: #f8f9fa; border-radius: 4px;">
                     <p style="margin: 0;">
-                        <strong>総リポジトリ数:</strong> ${data.totalRepositories} 
-                        (<strong>複数プロジェクト:</strong> ${data.multiProjectRepositories}個)
+                        <strong>Total Repositories:</strong> ${data.totalRepositories} 
+                        (<strong>Multi-project:</strong> ${data.multiProjectRepositories})
                     </p>
                 </div>
             `;
-            container.innerHTML = summaryHtml;
             
-            // チャート表示
-            displayCohesionChart(analyses);
+            container.innerHTML = summaryHtml + '<h3>All Repository Details</h3>';
             
-            // 詳細リスト表示
-            displayCohesionDetailList(analyses);
-        }
-        
-        function displayCohesionChart(analyses) {
-            const container = document.getElementById('cohesionChart');
+            const detailsSection = document.createElement('div');
+            detailsSection.className = 'details-section';
             
-            const margin = {top: 20, right: 20, bottom: 100, left: 60};
-            const width = container.clientWidth - margin.left - margin.right;
-            const height = 350 - margin.top - margin.bottom;
+            // Display all repositories (sorted by cohesion: ascending)
+            const sortedAnalyses = [...analyses].sort((a, b) => {
+                // First sort by cohesion (ascending)
+                if (a.cohesionScore !== b.cohesionScore) {
+                    return a.cohesionScore - b.cohesionScore;
+                }
+                // Then sort by project count (descending)
+                if (a.projectCount !== b.projectCount) {
+                    return b.projectCount - a.projectCount;
+                }
+                // Finally sort by name
+                return a.repositoryName.localeCompare(b.repositoryName);
+            });
             
-            const svg = d3.select(container)
-                .append('svg')
-                .attr('width', width + margin.left + margin.right)
-                .attr('height', height + margin.top + margin.bottom)
-                .append('g')
-                .attr('transform', `translate(${margin.left},${margin.top})`);
-            
-            // analysesは既にソート済み（複数プロジェクトかつ低凝集度が優先）
-            const data = analyses.map(a => ({
-                repo: a.repositoryName,
-                score: a.cohesionScore,
-                projectCount: a.projectCount,
-                internal: a.internalDependencies,
-                external: a.externalDependencies
-            }));
-            
-            const x = d3.scaleBand()
-                .range([0, width])
-                .domain(data.map(d => d.repo))
-                .padding(0.1);
-            
-            const y = d3.scaleLinear()
-                .range([height, 0])
-                .domain([0, 1]);
-            
-            // バーを描画
-            svg.selectAll('.bar')
-                .data(data)
-                .enter().append('rect')
-                .attr('class', 'bar')
-                .attr('x', d => x(d.repo))
-                .attr('width', x.bandwidth())
-                .attr('y', d => y(d.score))
-                .attr('height', d => height - y(d.score))
-                .attr('fill', d => {
-                    if (d.score > 0.7) return '#28a745';
-                    if (d.score > 0.4) return '#ffc107';
-                    return '#dc3545';
-                });
-            
-            // 値をバーの上に表示（複数プロジェクトの場合は強調）
-            svg.selectAll('.text')
-                .data(data)
-                .enter().append('text')
-                .attr('x', d => x(d.repo) + x.bandwidth()/2)
-                .attr('y', d => y(d.score) - 5)
-                .attr('text-anchor', 'middle')
-                .attr('font-weight', d => d.projectCount > 1 ? 'bold' : 'normal')
-                .text(d => d.score.toFixed(3));
-            
-            // プロジェクト数をバーの下に表示
-            svg.selectAll('.project-count')
-                .data(data)
-                .enter().append('text')
-                .attr('x', d => x(d.repo) + x.bandwidth()/2)
-                .attr('y', height + 5)
-                .attr('text-anchor', 'end')
-                .attr('transform', d => `rotate(-45, ${x(d.repo) + x.bandwidth()/2}, ${height + 5})`)
-                .attr('font-size', '10px')
-                .attr('fill', '#666')
-                .text(d => d.projectCount > 1 ? `(${d.projectCount}個)` : '');
-            
-            // X軸
-            svg.append('g')
-                .attr('transform', `translate(0,${height})`)
-                .call(d3.axisBottom(x))
-                .selectAll('text')
-                .attr('transform', 'rotate(-45)')
-                .style('text-anchor', 'end');
-            
-            // Y軸
-            svg.append('g')
-                .call(d3.axisLeft(y));
-            
-            // Y軸ラベル
-            svg.append('text')
-                .attr('transform', 'rotate(-90)')
-                .attr('y', 0 - margin.left)
-                .attr('x', 0 - (height / 2))
-                .attr('dy', '1em')
-                .style('text-anchor', 'middle')
-                .text('凝集度スコア');
-        }
-        
-        function displayCohesionDetailList(analyses) {
-            const container = document.getElementById('cohesionList');
-            container.innerHTML = '<h3>リポジトリ詳細</h3>';
-            
-            // 複数プロジェクトのリポジトリのみ表示
-            const multiProjectRepos = analyses.filter(a => a.projectCount > 1);
-            
-            if (multiProjectRepos.length === 0) {
-                container.innerHTML += '<p style="color: #666;">複数プロジェクトを持つリポジトリはありません。</p>';
-                return;
-            }
-            
-            multiProjectRepos.forEach(analysis => {
-                const div = document.createElement('div');
-                div.style.marginBottom = '1.5rem';
-                
+            sortedAnalyses.forEach(analysis => {
                 const scoreClass = analysis.cohesionScore > 0.7 ? 'high-cohesion' : 
                                  analysis.cohesionScore > 0.4 ? 'medium-cohesion' : 'low-cohesion';
                 
-                div.innerHTML = `
-                    <div class="cohesion-item" style="margin-bottom: 0.5rem;">
-                        <div>
-                            <strong>${analysis.repositoryName}</strong>
-                            <span style="color: #666; font-size: 14px;">（${analysis.projectCount} プロジェクト）</span>
-                        </div>
-                        <span class="cohesion-score ${scoreClass}">${analysis.cohesionScore.toFixed(3)}</span>
+                const detailItem = document.createElement('div');
+                detailItem.className = `detail-item ${scoreClass}`;
+                
+                detailItem.innerHTML = `
+                    <div class="repository-name">
+                        ${analysis.repositoryName}
+                        <span class="cohesion-score ${scoreClass}" style="float: right;">
+                            ${analysis.cohesionScore.toFixed(3)}
+                        </span>
                     </div>
-                    <div style="padding-left: 1rem; font-size: 13px; color: #666;">
-                        <div>内部依存: ${analysis.internalDependencies}個</div>
-                        <div>外部依存: ${analysis.externalDependencies}個</div>
-                        ${analysis.cohesionScore < 0.7 ? 
-                            '<div style="color: #dc3545; margin-top: 0.25rem;">⚠️ 凝集度が低いため、リポジトリ分割を検討してください</div>' : 
-                            ''}
+                    <div class="dependency-stats">
+                        <span class="stat-item"><strong>Projects:</strong> ${analysis.projectCount}</span>
+                        <span class="stat-item"><strong>Internal Deps:</strong> ${analysis.internalDependencies}</span>
+                        <span class="stat-item"><strong>External Deps:</strong> ${analysis.externalDependencies}</span>
+                        <span class="stat-item"><strong>Level:</strong> ${analysis.cohesionLevel}</span>
                     </div>
+                    <div class="projects-list">
+                        <strong>Project List:</strong>
+                        ${analysis.projects.map(p => `
+                            <div class="project-item">• ${p}</div>
+                        `).join('')}
+                    </div>
+                    ${analysis.cohesionScore < 0.7 && analysis.projectCount > 1 ? 
+                        `<div style="color: #dc3545; margin-top: 0.5rem; font-size: 13px;">
+                            ⚠️ Cohesion is ${analysis.cohesionScore < 0.4 ? 'low' : 'medium'}, consider splitting this repository
+                        </div>` : 
+                        ''}
+                    ${analysis.projectCount === 1 ? 
+                        `<div style="color: #666; margin-top: 0.5rem; font-size: 13px;">
+                            ℹ️ Single-project repository
+                        </div>` : 
+                        ''}
                 `;
                 
-                container.appendChild(div);
+                detailsSection.appendChild(detailItem);
             });
+            
+            container.appendChild(detailsSection);
+            
+            // サマリー統計を追加
+            const summaryStats = document.createElement('div');
+            summaryStats.style.marginTop = '2rem';
+            summaryStats.style.padding = '1rem';
+            summaryStats.style.backgroundColor = '#f0f0f0';
+            summaryStats.style.borderRadius = '4px';
+            
+            const lowCohesion = analyses.filter(a => a.cohesionScore < 0.4).length;
+            const mediumCohesion = analyses.filter(a => a.cohesionScore >= 0.4 && a.cohesionScore <= 0.7).length;
+            const highCohesion = analyses.filter(a => a.cohesionScore > 0.7).length;
+            
+            summaryStats.innerHTML = `
+                <h4>Cohesion Summary</h4>
+                <div>
+                    <span class="stat-item"><strong>Low Cohesion (<0.4):</strong> ${lowCohesion}</span>
+                    <span class="stat-item"><strong>Medium Cohesion (0.4-0.7):</strong> ${mediumCohesion}</span>
+                    <span class="stat-item"><strong>High Cohesion (>0.7):</strong> ${highCohesion}</span>
+                </div>
+                <div style="margin-top: 0.5rem;">
+                    <span class="stat-item"><strong>Single Project:</strong> ${analyses.filter(a => a.projectCount === 1).length}</span>
+                    <span class="stat-item"><strong>Multiple Projects:</strong> ${analyses.filter(a => a.projectCount > 1).length}</span>
+                </div>
+            `;
+            
+            container.appendChild(summaryStats);
         }
         
         function displayUnusedProjects(data) {
@@ -403,13 +402,13 @@
             container.innerHTML = '';
             
             if (data.totalUnused === 0) {
-                container.innerHTML = '<p>参照されていないプロジェクトはありません。</p>';
+                container.innerHTML = '<p>No unreferenced projects found.</p>';
                 return;
             }
             
-            container.innerHTML = `<p>合計 <span class="unused-count">${data.totalUnused}</span> 個の参照されていないプロジェクトが検出されました。</p>`;
+            container.innerHTML = `<p>Total <span class="unused-count">${data.totalUnused}</span> unreferenced projects detected.</p>`;
             
-            // リポジトリごとに表示
+            // Display by repository
             Object.entries(data.unusedByRepository).forEach(([repo, projects]) => {
                 if (projects.length === 0) return;
                 

@@ -50,13 +50,14 @@ http://localhost:8080
 #### Command Line Interface
 
 ```bash
-java -jar target/dependencies-analyzer-1.0-SNAPSHOT.jar [path-to-analyze]
+# Analyze a directory and generate dependency-graph.html
+java -jar target/dependencies-analyzer-1.0-SNAPSHOT.jar <directory-path>
+
+# Example: Analyze the included test-projects
+java -jar target/dependencies-analyzer-1.0-SNAPSHOT.jar test-projects
 ```
 
-Or use the provided script:
-```bash
-./analyze.sh [path-to-analyze]
-```
+This will generate a `dependency-graph.html` file that can be opened in your browser.
 
 ## Web Interface Features
 

@@ -22,6 +22,10 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.awt.Desktop;
 import java.net.URI;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import java.util.HashMap;
 
 public class DependencyAnalyzer {
     private static final Logger logger = LoggerFactory.getLogger(DependencyAnalyzer.class);
@@ -44,9 +48,15 @@ public class DependencyAnalyzer {
         // Collect all projects
         List<Project> allProjects = new ArrayList<>();
         
-        for (Path repo : gitRepositories) {
-            List<Project> repoProjects = analyzeRepository(repo);
-            allProjects.addAll(repoProjects);
+        // If no git repositories found, analyze the root directory itself
+        if (gitRepositories.isEmpty()) {
+            logger.info("No Git repositories found, analyzing directory as a single repository");
+            allProjects = analyzeRepository(rootPath);
+        } else {
+            for (Path repo : gitRepositories) {
+                List<Project> repoProjects = analyzeRepository(repo);
+                allProjects.addAll(repoProjects);
+            }
         }
         
         logger.info("Total projects found: {}", allProjects.size());
@@ -59,6 +69,13 @@ public class DependencyAnalyzer {
         DependencyGraphVisualizer textVisualizer = new DependencyGraphVisualizer();
         String visualization = textVisualizer.visualize(inHouseDependencies);
         System.out.println(visualization);
+        
+        // Save analysis data as JSON
+        try {
+            saveAnalysisDataAsJson(inHouseDependencies, allProjects);
+        } catch (IOException e) {
+            logger.error("Failed to save analysis data as JSON", e);
+        }
         
         // Generate HTML visualization
         HtmlGraphVisualizer htmlVisualizer = new HtmlGraphVisualizer();
@@ -185,6 +202,106 @@ public class DependencyAnalyzer {
             }
         } catch (Exception e) {
             logger.warn("Could not open browser automatically: " + e.getMessage());
+        }
+    }
+    
+    private void saveAnalysisDataAsJson(Map<Project, List<Dependency>> inHouseDependencies, List<Project> allProjects) throws IOException {
+        ObjectMapper mapper = new ObjectMapper();
+        ObjectNode root = mapper.createObjectNode();
+        
+        // Create nodes array
+        ArrayNode nodes = mapper.createArrayNode();
+        Map<String, Integer> projectIndices = new HashMap<>();
+        int index = 0;
+        
+        for (Project project : allProjects) {
+            ObjectNode node = mapper.createObjectNode();
+            node.put("id", project.getGroupId() + ":" + project.getArtifactId());
+            node.put("name", project.getArtifactId());
+            node.put("version", project.getVersion());
+            node.put("group", project.getGroupId());
+            node.put("type", project.getType().toString());
+            node.put("packaging", project.getPackaging());
+            
+            // Determine repository from path
+            String repository = determineRepository(project);
+            node.put("nodeGroup", repository);
+            
+            nodes.add(node);
+            projectIndices.put(project.getGroupId() + ":" + project.getArtifactId(), index++);
+        }
+        
+        // Create links array using node IDs instead of indices
+        ArrayNode links = mapper.createArrayNode();
+        for (Map.Entry<Project, List<Dependency>> entry : inHouseDependencies.entrySet()) {
+            Project source = entry.getKey();
+            String sourceId = source.getGroupId() + ":" + source.getArtifactId();
+            
+            for (Dependency dep : entry.getValue()) {
+                String targetId = dep.getGroupId() + ":" + dep.getArtifactId();
+                
+                // Check if target node exists
+                if (projectIndices.containsKey(targetId)) {
+                    ObjectNode link = mapper.createObjectNode();
+                    link.put("source", sourceId);
+                    link.put("target", targetId);
+                    link.put("value", 1);
+                    links.add(link);
+                }
+            }
+        }
+        
+        // Add to root
+        root.set("nodes", nodes);
+        root.set("links", links);
+        
+        // Add statistics
+        ObjectNode stats = mapper.createObjectNode();
+        stats.put("totalProjects", allProjects.size());
+        stats.put("totalDependencies", links.size());
+        root.set("stats", stats);
+        
+        // Write to file
+        mapper.writerWithDefaultPrettyPrinter().writeValue(
+            Files.newOutputStream(Paths.get("dependencies-analysis.json")), 
+            root
+        );
+        logger.info("Analysis data saved to dependencies-analysis.json");
+    }
+    
+    private String determineRepository(Project project) {
+        Path projectPath = project.getProjectPath();
+        if (projectPath == null) return "test-projects";
+        
+        try {
+            // Get absolute path and convert to string
+            String fullPath = projectPath.toAbsolutePath().toString().replace('\\', '/');
+            
+            // Find test-projects in the path
+            int testProjectsIndex = fullPath.indexOf("test-projects/");
+            if (testProjectsIndex >= 0) {
+                // Extract the part after test-projects/
+                String afterTestProjects = fullPath.substring(testProjectsIndex + "test-projects/".length());
+                
+                // Extract repository name (first directory after test-projects/)
+                int nextSlash = afterTestProjects.indexOf('/');
+                if (nextSlash > 0) {
+                    return afterTestProjects.substring(0, nextSlash);
+                } else if (!afterTestProjects.isEmpty()) {
+                    return afterTestProjects;
+                }
+            }
+            
+            // If path doesn't contain test-projects, try to extract last two directories
+            String[] parts = fullPath.split("/");
+            if (parts.length >= 2 && parts[parts.length - 2].equals("test-projects")) {
+                return parts[parts.length - 1];
+            }
+            
+            return "test-projects";
+        } catch (Exception e) {
+            logger.warn("Failed to determine repository for project: " + project.getArtifactId(), e);
+            return "test-projects";
         }
     }
 }
