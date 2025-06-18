@@ -45,7 +45,7 @@ mvn spring-boot:run
 http://localhost:8080
 ```
 
-3. The application will automatically analyze projects in the `test-projects` directory
+3. The application will automatically analyze projects in the included `test-projects` directory
 
 #### Command Line Interface
 
@@ -100,7 +100,12 @@ dependency-analyzer/
 │   │   └── resources/
 │   │       └── static/               # Web UI files
 │   └── test/                         # Unit tests
-└── test-projects/                    # Sample projects for testing
+└── test-projects/                    # Sample projects demonstrating various dependency scenarios
+    ├── circular-deps-example/        # Circular dependency demonstration
+    ├── ecommerce-platform/          # Multi-module Maven project
+    ├── order-processing/            # Multi-module Gradle project
+    ├── platform-core/               # Nested Gradle modules
+    └── ... (30+ example projects)
 ```
 
 ## API Endpoints
