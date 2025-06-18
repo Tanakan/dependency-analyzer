@@ -55,6 +55,3 @@ server.log
 
 # Build
 build/
-
-# Test projects (contains embedded git repos)
-test-projects/
