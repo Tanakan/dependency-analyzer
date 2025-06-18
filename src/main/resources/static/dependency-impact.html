@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dependency Impact Analysis - Dependencies Analyzer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+        
+        .header {
+            background-color: #333;
+            color: white;
+            padding: 1rem;
+            text-align: center;
+        }
+        
+        .nav-buttons {
+            background-color: #444;
+            padding: 0.5rem;
+            text-align: center;
+        }
+        
+        .nav-buttons a {
+            color: white;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            margin: 0 0.5rem;
+            background-color: #555;
+            border-radius: 4px;
+            display: inline-block;
+        }
+        
+        .nav-buttons a:hover {
+            background-color: #666;
+        }
+        
+        .nav-buttons a.active {
+            background-color: #007bff;
+        }
+        
+        .content {
+            padding: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .stats-section {
+            background-color: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1rem;
+        }
+        
+        .stat-card {
+            background-color: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 6px;
+            text-align: center;
+            border-left: 4px solid #007bff;
+        }
+        
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-label {
+            color: #666;
+            font-size: 0.9rem;
+        }
+        
+        .repository-section {
+            background-color: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-bottom: 1.5rem;
+        }
+        
+        .repository-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #e9ecef;
+            margin-bottom: 1rem;
+            cursor: pointer;
+            user-select: none;
+        }
+        
+        .repository-header:hover {
+            background-color: #f8f9fa;
+            margin: -0.5rem;
+            padding: 1.5rem;
+            padding-bottom: 1rem;
+            border-radius: 6px;
+        }
+        
+        .repository-name {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #333;
+            display: flex;
+            align-items: center;
+        }
+        
+        .chevron {
+            margin-right: 0.5rem;
+            transition: transform 0.2s;
+        }
+        
+        .collapsed .chevron {
+            transform: rotate(-90deg);
+        }
+        
+        .dependency-count {
+            font-size: 1.1rem;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: bold;
+        }
+        
+        .high-impact {
+            background-color: #dc3545;
+            color: white;
+        }
+        
+        .medium-impact {
+            background-color: #ffc107;
+            color: #333;
+        }
+        
+        .low-impact {
+            background-color: #28a745;
+            color: white;
+        }
+        
+        .zero-impact {
+            background-color: #6c757d;
+            color: white;
+        }
+        
+        .projects-list {
+            display: none;
+        }
+        
+        .repository-section:not(.collapsed) .projects-list {
+            display: block;
+        }
+        
+        .project-item {
+            background-color: #f8f9fa;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            border-radius: 6px;
+            border-left: 4px solid #007bff;
+        }
+        
+        .project-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+        
+        .project-name {
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .project-count {
+            background-color: #007bff;
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 15px;
+            font-size: 0.9rem;
+            font-weight: bold;
+        }
+        
+        .dependents-section {
+            margin-top: 0.5rem;
+        }
+        
+        .dependents-label {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 0.25rem;
+        }
+        
+        .dependent-item {
+            display: inline-block;
+            background-color: white;
+            padding: 0.25rem 0.75rem;
+            margin: 0.25rem;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            border: 1px solid #dee2e6;
+            color: #495057;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 3rem;
+            color: #666;
+        }
+        
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 1rem;
+            border-radius: 5px;
+            margin: 1rem;
+        }
+        
+        .no-dependents-message {
+            text-align: center;
+            padding: 3rem;
+            color: #666;
+            font-style: italic;
+        }
+        
+        .legend {
+            background-color: white;
+            padding: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+        
+        .legend-title {
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+        
+        .legend-items {
+            display: flex;
+            gap: 2rem;
+            flex-wrap: wrap;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Dependency Impact Analysis</h1>
+    </div>
+    
+    <div class="nav-buttons">
+        <a href="index.html">Dependency Graph</a>
+        <a href="cohesion.html">Cohesion Analysis</a>
+        <a href="issues.html">Issues Analysis</a>
+        <a href="dependency-impact.html" class="active">Dependency Impact</a>
+    </div>
+    
+    <div class="content">
+        <div class="loading" id="loading">
+            <h3>Analyzing dependency impact...</h3>
+        </div>
+        
+        <div class="error" id="error" style="display: none;"></div>
+        
+        <div id="results" style="display: none;">
+            <div class="stats-section">
+                <h2>Overview</h2>
+                <div class="stats-grid" id="statsGrid">
+                    <!-- Stats will be populated here -->
+                </div>
+            </div>
+            
+            <div class="legend">
+                <div class="legend-title">Impact Level Indicators</div>
+                <div class="legend-items">
+                    <div class="legend-item">
+                        <div class="legend-color high-impact"></div>
+                        <span>High Impact (10+ dependents)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color medium-impact"></div>
+                        <span>Medium Impact (5-9 dependents)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color low-impact"></div>
+                        <span>Low Impact (1-4 dependents)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color zero-impact"></div>
+                        <span>No Impact (0 dependents)</span>
+                    </div>
+                </div>
+            </div>
+            
+            <h2>Most Depended-Upon Repositories</h2>
+            <div id="repositoriesList">
+                <!-- Repository sections will be populated here -->
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Load data when page loads
+        window.addEventListener('DOMContentLoaded', function() {
+            loadDependencyImpactData();
+        });
+        
+        function loadDependencyImpactData() {
+            fetch('/api/migration/dependency-impact')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to load dependency impact data');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    displayResults(data);
+                })
+                .catch(error => {
+                    showError('Error loading data: ' + error.message);
+                });
+        }
+        
+        function showError(message) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('error').style.display = 'block';
+            document.getElementById('error').textContent = message;
+        }
+        
+        function displayResults(data) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('results').style.display = 'block';
+            
+            // Display statistics
+            displayStatistics(data.statistics);
+            
+            // Display repositories
+            displayRepositories(data.repositories);
+        }
+        
+        function displayStatistics(stats) {
+            const statsGrid = document.getElementById('statsGrid');
+            statsGrid.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-value">${stats.totalProjects}</div>
+                    <div class="stat-label">Total Projects</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${stats.projectsWithDependents}</div>
+                    <div class="stat-label">Projects with Dependents</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${stats.totalDependencyRelations}</div>
+                    <div class="stat-label">Total Dependency Relations</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${stats.averageDependentsPerProject.toFixed(1)}</div>
+                    <div class="stat-label">Avg Dependents per Project</div>
+                </div>
+            `;
+        }
+        
+        function displayRepositories(repositories) {
+            const repositoriesList = document.getElementById('repositoriesList');
+            
+            if (repositories.length === 0) {
+                repositoriesList.innerHTML = '<div class="no-dependents-message">No repositories with incoming dependencies found.</div>';
+                return;
+            }
+            
+            repositoriesList.innerHTML = repositories.map((repo, index) => {
+                const impactClass = getImpactClass(repo.totalIncomingDependencies);
+                const isCollapsed = index > 2; // Collapse all but top 3 by default
+                
+                return `
+                    <div class="repository-section ${isCollapsed ? 'collapsed' : ''}" id="repo-${index}">
+                        <div class="repository-header" onclick="toggleRepository(${index})">
+                            <div class="repository-name">
+                                <span class="chevron">▼</span>
+                                ${repo.repository}
+                            </div>
+                            <div class="dependency-count ${impactClass}">
+                                ${repo.totalIncomingDependencies} incoming dependencies
+                            </div>
+                        </div>
+                        <div class="projects-list">
+                            ${displayProjects(repo.projects)}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function displayProjects(projects) {
+            if (projects.length === 0) {
+                return '<div class="no-dependents-message">No projects with incoming dependencies in this repository.</div>';
+            }
+            
+            return projects.map(project => `
+                <div class="project-item">
+                    <div class="project-header">
+                        <div class="project-name">${project.shortName}</div>
+                        <div class="project-count">${project.incomingCount} dependents</div>
+                    </div>
+                    <div class="dependents-section">
+                        <div class="dependents-label">Depended upon by:</div>
+                        <div>
+                            ${project.dependents.map(dep => `
+                                <span class="dependent-item">${formatDependentName(dep)}</span>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function formatDependentName(fullName) {
+            // Extract just the artifact name from the full name (group:artifact:version)
+            const parts = fullName.split(':');
+            if (parts.length >= 2) {
+                return parts[1]; // Return just the artifact ID
+            }
+            return fullName;
+        }
+        
+        function getImpactClass(count) {
+            if (count >= 10) return 'high-impact';
+            if (count >= 5) return 'medium-impact';
+            if (count >= 1) return 'low-impact';
+            return 'zero-impact';
+        }
+        
+        function toggleRepository(index) {
+            const repoSection = document.getElementById(`repo-${index}`);
+            repoSection.classList.toggle('collapsed');
+        }
+    </script>
+</body>
+</html>

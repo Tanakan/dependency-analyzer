@@ -290,6 +290,131 @@ public class MigrationController {
             .collect(Collectors.toSet());
     }
     
+    @GetMapping("/dependency-impact")
+    public Map<String, Object> getDependencyImpact() {
+        try {
+            Path rootPath = Paths.get("test-projects");
+            DependencyAnalyzer analyzer = new DependencyAnalyzer();
+            List<Project> allProjects = new ArrayList<>();
+            List<Path> gitRepositories = analyzer.findGitRepositories(rootPath);
+            for (Path repo : gitRepositories) {
+                allProjects.addAll(analyzer.analyzeRepository(repo));
+            }
+            
+            // Create a map to count incoming dependencies for each project
+            Map<String, Set<String>> incomingDependencies = new HashMap<>();
+            Map<String, Project> projectMap = new HashMap<>();
+            
+            // Build project map for quick lookup
+            for (Project project : allProjects) {
+                projectMap.put(project.getFullName(), project);
+                // Also add without version for matching
+                String versionlessKey = project.getGroupId() + ":" + project.getArtifactId();
+                projectMap.put(versionlessKey, project);
+            }
+            
+            // Analyze all dependencies to find incoming connections
+            for (Project project : allProjects) {
+                for (Dependency dep : project.getDependencies()) {
+                    // Try to find the dependency project
+                    String depFullName = dep.getGroupId() + ":" + dep.getArtifactId() + ":" + dep.getVersion();
+                    Project depProject = projectMap.get(depFullName);
+                    
+                    // If not found with version, try without version
+                    if (depProject == null) {
+                        String depNameWithoutVersion = dep.getGroupId() + ":" + dep.getArtifactId();
+                        depProject = projectMap.get(depNameWithoutVersion);
+                    }
+                    
+                    // If we found the dependency project, record the incoming dependency
+                    if (depProject != null) {
+                        String depProjectFullName = depProject.getFullName();
+                        incomingDependencies.computeIfAbsent(depProjectFullName, k -> new HashSet<>())
+                            .add(project.getFullName());
+                    }
+                }
+            }
+            
+            // Group dependencies by repository
+            Map<String, Map<String, Object>> repositoryImpacts = new HashMap<>();
+            
+            for (Map.Entry<String, Set<String>> entry : incomingDependencies.entrySet()) {
+                String projectFullName = entry.getKey();
+                Set<String> dependents = entry.getValue();
+                
+                Project project = projectMap.get(projectFullName);
+                if (project != null) {
+                    String repoName = extractRepositoryName(project.getProjectPath());
+                    
+                    Map<String, Object> repoData = repositoryImpacts.computeIfAbsent(repoName, k -> {
+                        Map<String, Object> data = new HashMap<>();
+                        data.put("repository", repoName);
+                        data.put("totalIncomingDependencies", 0);
+                        data.put("projects", new ArrayList<Map<String, Object>>());
+                        return data;
+                    });
+                    
+                    // Update total count
+                    int currentTotal = (int) repoData.get("totalIncomingDependencies");
+                    repoData.put("totalIncomingDependencies", currentTotal + dependents.size());
+                    
+                    // Add project details
+                    Map<String, Object> projectData = new HashMap<>();
+                    projectData.put("projectName", project.getFullName());
+                    projectData.put("shortName", project.getArtifactId());
+                    projectData.put("incomingCount", dependents.size());
+                    projectData.put("dependents", new ArrayList<>(dependents));
+                    
+                    @SuppressWarnings("unchecked")
+                    List<Map<String, Object>> projects = (List<Map<String, Object>>) repoData.get("projects");
+                    projects.add(projectData);
+                }
+            }
+            
+            // Convert to list and sort by total incoming dependencies
+            List<Map<String, Object>> sortedRepositories = new ArrayList<>(repositoryImpacts.values());
+            sortedRepositories.sort((a, b) -> {
+                int countA = (int) a.get("totalIncomingDependencies");
+                int countB = (int) b.get("totalIncomingDependencies");
+                return Integer.compare(countB, countA); // Descending order
+            });
+            
+            // Sort projects within each repository by incoming count
+            for (Map<String, Object> repo : sortedRepositories) {
+                @SuppressWarnings("unchecked")
+                List<Map<String, Object>> projects = (List<Map<String, Object>>) repo.get("projects");
+                projects.sort((a, b) -> {
+                    int countA = (int) a.get("incomingCount");
+                    int countB = (int) b.get("incomingCount");
+                    return Integer.compare(countB, countA); // Descending order
+                });
+            }
+            
+            // Calculate statistics
+            int totalProjects = allProjects.size();
+            int projectsWithDependents = incomingDependencies.size();
+            int totalDependencyRelations = incomingDependencies.values().stream()
+                .mapToInt(Set::size)
+                .sum();
+            
+            Map<String, Object> result = new HashMap<>();
+            result.put("repositories", sortedRepositories);
+            result.put("statistics", Map.of(
+                "totalProjects", totalProjects,
+                "projectsWithDependents", projectsWithDependents,
+                "totalDependencyRelations", totalDependencyRelations,
+                "averageDependentsPerProject", projectsWithDependents > 0 ? 
+                    (double) totalDependencyRelations / projectsWithDependents : 0
+            ));
+            
+            return result;
+            
+        } catch (Exception e) {
+            logger.error("Error analyzing dependency impact", e);
+            throw new RuntimeException("Dependency impact analysis failed: " + e.getMessage());
+        }
+    }
+    
     private String extractRepositoryName(Path path) {
         String pathStr = path.toString();
         String[] parts = pathStr.split("/");
