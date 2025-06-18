@@ -1,0 +1,10 @@
+plugins {
+    id 'java'
+}
+
+dependencies {
+    implementation platform(project(':'))
+    implementation project(':core-common')
+    
+    api 'org.springframework.data:spring-data-commons'
+}

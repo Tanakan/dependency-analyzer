@@ -1,0 +1,38 @@
+dependencies {
+    // Depends on core module
+    implementation project(':order-core')
+    
+    // Kafka
+    implementation 'org.springframework.kafka:spring-kafka'
+    implementation 'org.apache.kafka:kafka-streams:3.4.0'
+    
+    // RabbitMQ
+    implementation 'org.springframework.boot:spring-boot-starter-amqp'
+    
+    // AWS SQS
+    implementation 'com.amazonaws:aws-java-sdk-sqs:1.12.429'
+    implementation 'org.springframework.cloud:spring-cloud-starter-aws-messaging:2.2.6.RELEASE'
+    
+    // Apache Camel for integration
+    implementation 'org.apache.camel.springboot:camel-spring-boot-starter:3.20.2'
+    implementation 'org.apache.camel:camel-kafka:3.20.2'
+    implementation 'org.apache.camel:camel-rabbitmq:3.20.2'
+    
+    // Message serialization
+    implementation 'com.fasterxml.jackson.core:jackson-databind'
+    implementation 'org.apache.avro:avro:1.11.1'
+    implementation 'io.confluent:kafka-avro-serializer:7.3.2'
+    
+    // Circular dependency example - messaging depends on persistence for audit logging
+    implementation project(':order-persistence')
+    
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.kafka:spring-kafka-test'
+    testImplementation 'org.testcontainers:kafka:1.17.6'
+    testImplementation 'org.testcontainers:rabbitmq:1.17.6'
+}
+
+// Add Confluent repository for Kafka Avro serializer
+repositories {
+    maven { url 'https://packages.confluent.io/maven/' }
+}

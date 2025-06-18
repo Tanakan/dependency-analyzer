@@ -1,0 +1,44 @@
+dependencies {
+    // Depends on all other modules for integration testing
+    testImplementation project(':order-api')
+    testImplementation project(':order-core')
+    testImplementation project(':order-persistence')
+    testImplementation project(':order-messaging')
+    
+    // Spring Boot Test
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-webflux'
+    testImplementation 'org.springframework.security:spring-security-test'
+    
+    // RestAssured for API testing
+    testImplementation 'io.rest-assured:rest-assured:5.3.0'
+    testImplementation 'io.rest-assured:spring-mock-mvc:5.3.0'
+    
+    // Testcontainers
+    testImplementation 'org.testcontainers:testcontainers'
+    testImplementation 'org.testcontainers:junit-jupiter'
+    testImplementation 'org.testcontainers:mysql'
+    testImplementation 'org.testcontainers:postgresql'
+    testImplementation 'org.testcontainers:kafka'
+    testImplementation 'org.testcontainers:rabbitmq'
+    testImplementation 'org.testcontainers:localstack:1.17.6'
+    
+    // WireMock for mocking external services
+    testImplementation 'com.github.tomakehurst:wiremock-jre8:2.35.0'
+    
+    // Cucumber for BDD tests
+    testImplementation 'io.cucumber:cucumber-java:7.11.1'
+    testImplementation 'io.cucumber:cucumber-spring:7.11.1'
+    testImplementation 'io.cucumber:cucumber-junit-platform-engine:7.11.1'
+    
+    // Performance testing
+    testImplementation 'org.apache.jmeter:ApacheJMeter_core:5.5'
+    testImplementation 'org.apache.jmeter:ApacheJMeter_http:5.5'
+}
+
+// Integration tests configuration
+test {
+    useJUnitPlatform()
+    systemProperty 'spring.profiles.active', 'integration-test'
+    maxHeapSize = '2g'
+}

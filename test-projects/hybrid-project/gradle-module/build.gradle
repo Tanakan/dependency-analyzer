@@ -1,0 +1,43 @@
+plugins {
+    id 'java-library'
+    id 'maven-publish'
+}
+
+group = 'com.example.hybrid'
+version = '1.0.0'
+
+repositories {
+    mavenCentral()
+    mavenLocal() // To find the maven module
+}
+
+dependencies {
+    // Dynamic versions
+    implementation 'com.google.guava:guava:31.+'
+    implementation 'org.slf4j:slf4j-api:latest.release'
+    
+    // Platform dependency
+    implementation enforcedPlatform('com.example.platform:platform-core:2.0.0')
+    implementation 'com.example.platform:core-security'
+    
+    // Optional dependency
+    implementation('org.springframework.boot:spring-boot-starter-actuator:2.7.5') {
+        optional = true
+    }
+    
+    // Complex exclusions
+    implementation('org.apache.hadoop:hadoop-common:3.3.4') {
+        exclude group: 'org.slf4j'
+        exclude group: 'log4j'
+        exclude group: 'commons-logging'
+        exclude module: 'jersey-core'
+    }
+}
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+            from components.java
+        }
+    }
+}

@@ -1,0 +1,5 @@
+rootProject.name = 'hybrid-project'
+
+include 'gradle-module'
+
+// Note: maven-module is handled by Maven, not included here

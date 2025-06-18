@@ -1,0 +1,10 @@
+rootProject.name = 'platform-core'
+
+include 'core-common'
+include 'core-security'
+include 'core-security:security-api'
+include 'core-security:security-impl'
+include 'core-data'
+include 'core-data:data-mongodb'
+include 'core-data:data-postgresql'
+include 'core-data:data-redis'

@@ -1,0 +1,39 @@
+plugins {
+    id 'org.springframework.boot'
+}
+
+dependencies {
+    // Internal module dependencies
+    implementation project(':order-core')
+    implementation project(':order-persistence')
+    implementation project(':order-messaging')
+    
+    // Spring Boot
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    
+    // Spring Cloud
+    implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
+    implementation 'org.springframework.cloud:spring-cloud-starter-config'
+    implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
+    
+    // External service dependencies (transitive dependencies)
+    implementation 'com.example:user-service:1.0.0'
+    implementation 'com.example:payment-service:1.0.0'
+    implementation 'com.example:inventory-service:1.0.0'
+    
+    // API documentation
+    implementation 'org.springdoc:springdoc-openapi-ui:1.6.15'
+    
+    // Security
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.security:spring-security-oauth2-resource-server'
+    implementation 'org.springframework.security:spring-security-oauth2-jose'
+    
+    // Different version of Jackson (version conflict)
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.15.2'
+    
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.security:spring-security-test'
+}

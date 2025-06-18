@@ -1,0 +1,21 @@
+plugins {
+    id 'java-library'
+}
+
+group = 'com.example.included'
+version = '1.0.0'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    api 'com.google.guava:guava:31.1-jre'
+    
+    // Platform dependency with enforced platform
+    implementation enforcedPlatform('com.example.platform:platform-core:2.0.0')
+    implementation 'com.example.platform:core-data'
+    
+    // Dynamic version
+    implementation 'org.apache.commons:commons-collections4:4.+'
+}

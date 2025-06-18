@@ -1,0 +1,73 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '2.7.9' apply false
+    id 'io.spring.dependency-management' version '1.1.0' apply false
+}
+
+allprojects {
+    group = 'com.example.order'
+    version = '1.0.0'
+    
+    repositories {
+        mavenCentral()
+        maven { url 'https://repo.spring.io/milestone' }
+    }
+}
+
+subprojects {
+    apply plugin: 'java'
+    apply plugin: 'io.spring.dependency-management'
+    
+    java {
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
+    }
+    
+    // Import Spring Boot BOM
+    dependencyManagement {
+        imports {
+            mavenBom "org.springframework.boot:spring-boot-dependencies:2.7.9"
+            mavenBom "org.springframework.cloud:spring-cloud-dependencies:2021.0.5"
+        }
+        
+        dependencies {
+            // Define versions for common dependencies
+            dependency 'com.example:shared-utils:1.0.0'
+            dependency 'com.example:user-service:1.0.0'
+            dependency 'com.example:payment-service:1.0.0'
+            dependency 'com.example:inventory-service:1.0.0'
+            
+            // Different versions of the same library (version conflict)
+            dependency 'com.fasterxml.jackson.core:jackson-databind:2.14.2'
+            dependency 'com.fasterxml.jackson.core:jackson-annotations:2.14.2'
+            dependency 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.14.2'
+            
+            // Apache Commons
+            dependency 'org.apache.commons:commons-lang3:3.12.0'
+            dependency 'commons-io:commons-io:2.11.0'
+            
+            // Testing
+            dependency 'org.mockito:mockito-core:5.1.1'
+            dependency 'org.assertj:assertj-core:3.24.2'
+        }
+    }
+    
+    dependencies {
+        // Common dependencies for all subprojects
+        implementation 'org.slf4j:slf4j-api'
+        implementation 'ch.qos.logback:logback-classic'
+        
+        testImplementation 'org.junit.jupiter:junit-jupiter'
+        testImplementation 'org.mockito:mockito-core'
+        testImplementation 'org.assertj:assertj-core'
+    }
+    
+    test {
+        useJUnitPlatform()
+    }
+}
+
+// Configure specific dependencies for the root project
+dependencies {
+    // No dependencies for root project
+}

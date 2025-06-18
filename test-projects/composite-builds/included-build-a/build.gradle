@@ -1,0 +1,18 @@
+plugins {
+    id 'java-library'
+}
+
+group = 'com.example.included'
+version = '1.0.0'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    api 'org.slf4j:slf4j-api:1.7.36'
+    implementation 'ch.qos.logback:logback-classic:1.2.11'
+    
+    // This creates a dependency between included builds
+    implementation 'com.example.included:module-b:1.0.0'
+}

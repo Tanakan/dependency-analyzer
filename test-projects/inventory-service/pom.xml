@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 
+         http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    
+    <parent>
+        <groupId>com.example</groupId>
+        <artifactId>common-libs</artifactId>
+        <version>1.0.0</version>
+        <relativePath>../common-libs/pom.xml</relativePath>
+    </parent>
+    
+    <artifactId>inventory-service</artifactId>
+    <version>1.0.0</version>
+    <packaging>jar</packaging>
+    
+    <name>Inventory Service</name>
+    <description>Inventory management service with intentional compilation errors</description>
+    
+    <dependencies>
+        <!-- Spring Boot -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        
+        <!-- COMPILATION ERROR: Missing closing tag -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+        
+        <!-- Shared utilities -->
+        <dependency>
+            <groupId>com.example</groupId>
+            <artifactId>shared-utils</artifactId>
+        </dependency>
+        
+        <!-- COMPILATION ERROR: Invalid version format -->
+        <dependency>
+            <groupId>mysql</groupId>
+            <artifactId>mysql-connector-java</artifactId>
+            <version>8.0.x.INVALID</version>
+        </dependency>
+        
+        <!-- Circular dependency example -->
+        <dependency>
+            <groupId>com.example</groupId>
+            <artifactId>payment-service</artifactId>
+            <version>1.0.0</version>
+        </dependency>
+        
+        <!-- COMPILATION ERROR: Duplicate dependency -->
+        <dependency>
+            <groupId>com.example</groupId>
+            <artifactId>shared-utils</artifactId>
+            <version>1.0.0</version>
+        </dependency>
+        
+        <!-- MongoDB -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-mongodb</artifactId>
+        </dependency>
+        
+        <!-- COMPILATION ERROR: Non-existent artifact -->
+        <dependency>
+            <groupId>com.example.nonexistent</groupId>
+            <artifactId>fake-library</artifactId>
+            <version>999.999.999</version>
+        </dependency>
+        
+        <!-- Elasticsearch -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-elasticsearch</artifactId>
+        </dependency>
+        
+        <!-- COMPILATION ERROR: Missing required elements -->
+        <dependency>
+            <artifactId>commons-lang3</artifactId>
+        </dependency>
+        
+        <!-- Caching -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-cache</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.github.ben-manes.caffeine</groupId>
+            <artifactId>caffeine</artifactId>
+            <version>3.1.5</version>
+        </dependency>
+        
+        <!-- Testing -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+    
+    <!-- COMPILATION ERROR: Invalid XML structure -->
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>

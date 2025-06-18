@@ -1,0 +1,95 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '2.7.8'
+    id 'io.spring.dependency-management' version '1.0.15.RELEASE'
+}
+
+group = 'com.example.complex'
+version = '1.0.0'
+sourceCompatibility = '11'
+
+configurations {
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
+}
+
+repositories {
+    mavenCentral()
+    maven { url 'https://nexus.internal.company.com/repository/maven-public/' }
+    maven { url 'https://artifactory.internal.company.com/artifactory/libs-release' }
+}
+
+ext {
+    set('springCloudVersion', "2021.0.5")
+}
+
+dependencies {
+    // Multiple conflicting Spring Boot starters
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-webflux'
+    
+    // Platform dependencies with different approaches
+    implementation platform('com.example.platform:platform-core:2.0.0')
+    implementation enforcedPlatform('org.springframework.cloud:spring-cloud-dependencies:2021.0.5')
+    
+    // Internal dependencies with version conflicts
+    implementation 'com.example.gateway:api-gateway-v1:1.0.0'
+    implementation 'com.example.gateway:api-gateway-v2:2.0.0'
+    
+    // Legacy system with adapter
+    implementation 'com.example.adapter:legacy-adapter:1.0.0'
+    
+    // Transitive chain dependency
+    implementation 'com.example.chain:module-a:1.0.0'
+    
+    // Mock dependencies for different environments
+    testImplementation 'com.example.mocks:mock-payment:1.0.0'
+    testImplementation 'com.example.mocks:mock-shipping:1.0.0'
+    
+    // Testing framework
+    testImplementation 'com.example.test:testing-framework:1.2.0'
+    
+    // Complex exclusions
+    implementation('com.example.services:payment-service:1.5.0') {
+        exclude group: 'com.example.platform', module: 'core-common'
+        exclude group: 'org.springframework', module: 'spring-core'
+    }
+    
+    // Optional dependencies
+    compileOnly 'org.projectlombok:lombok:1.18.24'
+    annotationProcessor 'org.projectlombok:lombok:1.18.24'
+    
+    // Runtime only dependencies
+    runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
+    runtimeOnly 'mysql:mysql-connector-java'
+    
+    // Different classifiers
+    implementation 'io.netty:netty-transport-native-epoll:4.1.86.Final:linux-x86_64'
+    compileOnly 'org.apache.hadoop:hadoop-common:3.3.4:sources'
+    
+    // Dynamic versions
+    implementation 'com.google.code.gson:gson:2.+'
+    implementation 'joda-time:joda-time:latest.release'
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
+    }
+}
+
+// Custom configuration for integration tests
+configurations {
+    integrationTestImplementation.extendsFrom testImplementation
+    integrationTestRuntimeOnly.extendsFrom testRuntimeOnly
+}
+
+// Task to analyze dependencies
+task analyzeDependencies {
+    doLast {
+        configurations.compileClasspath.resolvedConfiguration.resolvedArtifacts.each { artifact ->
+            println "${artifact.moduleVersion.id} - ${artifact.file}"
+        }
+    }
+}

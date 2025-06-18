@@ -1,0 +1,10 @@
+rootProject.name = 'order-processing'
+
+include 'order-api'
+include 'order-core'
+include 'order-persistence'
+include 'order-messaging'
+include 'order-integration-tests'
+
+// Enable Gradle's version catalog feature
+enableFeaturePreview('VERSION_CATALOGS')

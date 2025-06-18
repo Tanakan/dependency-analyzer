@@ -1,0 +1,24 @@
+rootProject.name = 'composite-builds-example'
+
+// Include other builds as composite
+includeBuild('included-build-a') {
+    dependencySubstitution {
+        substitute module('com.example.included:module-a') using project(':')
+    }
+}
+
+includeBuild('included-build-b') {
+    dependencySubstitution {
+        substitute module('com.example.included:module-b') using project(':')
+    }
+}
+
+// Also include platform-core as a composite build
+includeBuild('../platform-core') {
+    dependencySubstitution {
+        substitute module('com.example.platform:core-common') using project(':core-common')
+        substitute module('com.example.platform:core-security') using project(':core-security')
+        substitute module('com.example.platform:security-api') using project(':core-security:security-api')
+        substitute module('com.example.platform:security-impl') using project(':core-security:security-impl')
+    }
+}

@@ -1,0 +1,39 @@
+plugins {
+    id 'java-platform'
+}
+
+group = 'com.example.platform'
+version = '2.0.0'
+
+subprojects {
+    group = 'com.example.platform'
+    version = '2.0.0'
+    
+    repositories {
+        mavenCentral()
+        maven { url 'https://nexus.internal.company.com/repository/maven-public/' }
+    }
+}
+
+// Define dependency constraints for the platform
+dependencies {
+    constraints {
+        api 'org.springframework:spring-core:5.3.23'
+        api 'org.springframework:spring-context:5.3.23'
+        api 'org.springframework.security:spring-security-core:5.7.5'
+        api 'org.springframework.data:spring-data-commons:2.7.6'
+        api 'com.fasterxml.jackson.core:jackson-databind:2.14.1'
+        api 'io.projectreactor:reactor-core:3.5.1'
+        api 'org.slf4j:slf4j-api:1.7.36'
+        api 'ch.qos.logback:logback-classic:1.2.11'
+    }
+}
+
+// Publishing configuration
+publishing {
+    publications {
+        maven(MavenPublication) {
+            from components.javaPlatform
+        }
+    }
+}

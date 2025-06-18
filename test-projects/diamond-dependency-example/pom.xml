@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 
+         http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.example.diamond</groupId>
+    <artifactId>diamond-dependency-example</artifactId>
+    <version>1.0.0</version>
+
+    <properties>
+        <maven.compiler.source>11</maven.compiler.source>
+        <maven.compiler.target>11</maven.compiler.target>
+    </properties>
+
+    <dependencies>
+        <!-- These all transitively depend on different versions of jackson-databind -->
+        <dependency>
+            <groupId>com.example.chain</groupId>
+            <artifactId>module-a</artifactId>
+            <version>1.0.0</version>
+        </dependency>
+        
+        <dependency>
+            <groupId>com.example.services</groupId>
+            <artifactId>payment-service</artifactId>
+            <version>1.5.0</version>
+        </dependency>
+        
+        <dependency>
+            <groupId>com.example.platform</groupId>
+            <artifactId>core-common</artifactId>
+            <version>2.0.0</version>
+        </dependency>
+        
+        <!-- Direct dependency to force resolution -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>2.14.2</version>
+        </dependency>
+        
+        <!-- These create diamond for Spring -->
+        <dependency>
+            <groupId>com.example.adapter</groupId>
+            <artifactId>legacy-adapter</artifactId>
+            <version>1.0.0</version>
+        </dependency>
+        
+        <dependency>
+            <groupId>com.example.profiles</groupId>
+            <artifactId>maven-profiles-example</artifactId>
+            <version>1.0.0</version>
+        </dependency>
+    </dependencies>
+</project>

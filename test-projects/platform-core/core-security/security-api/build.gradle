@@ -1,0 +1,17 @@
+plugins {
+    id 'java-library'
+}
+
+dependencies {
+    api platform(project(':'))
+    api project(':core-common')
+    
+    api 'org.springframework.security:spring-security-core'
+    api 'org.springframework.security:spring-security-web:5.7.5'
+    
+    // JWT API
+    api 'io.jsonwebtoken:jjwt-api:0.11.5'
+    
+    // OAuth2
+    api 'org.springframework.security:spring-security-oauth2-core:5.7.5'
+}

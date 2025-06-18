@@ -1,0 +1,24 @@
+plugins {
+    id 'java'
+}
+
+group = 'com.example.composite'
+version = '1.0.0'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // Dependencies from included builds
+    implementation 'com.example.included:module-a:1.0.0'
+    implementation 'com.example.included:module-b:1.0.0'
+    
+    // Platform dependencies that will be substituted
+    implementation 'com.example.platform:core-common:2.0.0'
+    implementation 'com.example.platform:security-api:2.0.0'
+    
+    // External dependencies
+    implementation 'org.apache.commons:commons-lang3:3.12.0'
+    implementation 'com.google.guava:guava:31.1-jre'
+}

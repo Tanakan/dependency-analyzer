@@ -1,0 +1,40 @@
+plugins {
+    id 'java'
+    id 'war'
+    id 'org.springframework.boot' version '2.7.0'
+    id 'io.spring.dependency-management' version '1.0.11.RELEASE'
+}
+
+group = 'com.example.portal'
+version = '3.1.0'
+sourceCompatibility = '11'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // Internal dependencies
+    implementation 'com.example:ecommerce-api:1.0.0'
+    implementation 'com.example:payment-service:1.5.0'
+    implementation 'com.example:notification-service:1.5.0'
+    implementation 'com.example:shared-utils:1.0.0'
+    
+    // Spring Boot Web
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    providedRuntime 'org.springframework.boot:spring-boot-starter-tomcat'
+    
+    // JSP and JSTL
+    implementation 'javax.servlet:jstl:1.2'
+    providedRuntime 'org.apache.tomcat.embed:tomcat-embed-jasper'
+    
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
+
+war {
+    enabled = true
+}
+
+bootWar {
+    mainClass = 'com.example.portal.CustomerPortalApplication'
+}

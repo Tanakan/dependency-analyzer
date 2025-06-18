@@ -1,0 +1,20 @@
+plugins {
+    id 'java-library'
+}
+
+dependencies {
+    implementation platform(project(':'))
+    api project(':core-data')
+    implementation project(':core-common')
+    
+    api 'org.springframework.data:spring-data-mongodb:3.4.5'
+    api 'org.mongodb:mongodb-driver-sync:4.8.1'
+    
+    // Reactive support
+    implementation 'org.springframework.data:spring-data-mongodb-reactive:3.4.5'
+    implementation 'org.mongodb:mongodb-driver-reactivestreams:4.8.1'
+    implementation 'io.projectreactor:reactor-core'
+    
+    // Test containers for testing
+    testImplementation 'org.testcontainers:mongodb:1.17.6'
+}
