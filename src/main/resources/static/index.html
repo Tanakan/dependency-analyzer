@@ -137,14 +137,26 @@
             cursor: pointer;
         }
         
-        .node circle {
+        .node circle,
+        .node rect {
             stroke: #fff;
             stroke-width: 2px;
+            cursor: pointer;
         }
         
         .node text {
             font-size: 12px;
             pointer-events: none;
+        }
+        
+        .node.hidden {
+            display: none;
+        }
+        
+        .node.highlighted circle,
+        .node.highlighted rect {
+            stroke-width: 4px;
+            stroke: #ff6b6b;
         }
         
         .link {
@@ -154,6 +166,19 @@
             stroke-width: 2px;
             stroke-linecap: round;
             marker-end: url(#arrowhead);
+        }
+        
+        .link.hidden {
+            display: none;
+        }
+        
+        .link.highlighted {
+            stroke-opacity: 0.8;
+            stroke-width: 3px;
+        }
+        
+        .repo-group-container.hidden {
+            display: none;
         }
         
         .tooltip {
@@ -398,13 +423,6 @@
         <div style="margin-top: 10px; font-size: 14px; color: #666;">
             Automatically loaded from dependencies-analysis.json file
         </div>
-        <div style="margin-top: 15px;">
-            <label style="display: inline-flex; align-items: center; cursor: pointer;">
-                <input type="checkbox" id="snapToGridToggle" style="margin-right: 8px;">
-                <span style="font-size: 14px;">Snap to Grid (20px)</span>
-            </label>
-            <button id="resetLayoutBtn" style="margin-left: 20px; padding: 5px 15px; font-size: 14px;">Reset Layout</button>
-        </div>
         <div style="margin-top: 10px;">
             <span id="group-status" style="color: #666; font-size: 14px; font-weight: bold;">Repository frames are always visible with no overlaps (Grid Layout)</span>
         </div>
@@ -470,20 +488,6 @@
         window.addEventListener('DOMContentLoaded', function() {
             loadAnalysisData();
             
-            // Setup snap-to-grid toggle
-            document.getElementById('snapToGridToggle').addEventListener('change', function(e) {
-                snapToGrid = e.target.checked;
-            });
-            
-            // Setup reset layout button
-            document.getElementById('resetLayoutBtn').addEventListener('click', function() {
-                if (currentData) {
-                    // Clear existing visualization
-                    d3.select('#graph').selectAll('*').remove();
-                    // Recreate with original layout
-                    drawGraph(currentData);
-                }
-            });
         });
         
         function loadAnalysisData() {
@@ -636,30 +640,83 @@
                     }
                 });
                 
-                // Set initial positions for nodes (no fixed positions)
+                // Calculate node degrees (number of connections)
+                const nodeDegrees = new Map();
+                nodes.forEach(node => {
+                    const degree = data.links.filter(l => l.source === node.id || l.target === node.id).length;
+                    nodeDegrees.set(node.id, degree);
+                });
+                
+                // Sort nodes by degree (highest first)
+                const sortedNodes = [...nodes].sort((a, b) => nodeDegrees.get(b.id) - nodeDegrees.get(a.id));
+                
+                // Set initial positions based on connectivity
                 if (nodes.length === 1) {
                     nodes[0].x = cellCenterX;
                     nodes[0].y = cellCenterY;
+                } else if (nodes.length === 2) {
+                    // Two nodes - place horizontally
+                    nodes[0].x = cellCenterX - 30;
+                    nodes[0].y = cellCenterY;
+                    nodes[1].x = cellCenterX + 30;
+                    nodes[1].y = cellCenterY;
                 } else {
-                    const radius = Math.min(40, 15 + 3 * Math.sqrt(nodes.length));
-                    nodes.forEach((node, i) => {
-                        const angle = (i * 2 * Math.PI) / nodes.length - Math.PI / 2;
-                        node.x = cellCenterX + radius * Math.cos(angle);
-                        node.y = cellCenterY + radius * Math.sin(angle);
-                    });
+                    // Multiple nodes - place high-degree nodes in center, others around
+                    const cellPadding = 30;
+                    const maxRadius = Math.min(cellWidth, cellHeight) / 2 - cellPadding - 25;
+                    
+                    if (nodes.length <= 4) {
+                        // Small groups - grid layout
+                        const positions = [
+                            [-30, -30], [30, -30],
+                            [-30, 30], [30, 30]
+                        ];
+                        sortedNodes.forEach((node, i) => {
+                            if (i < positions.length) {
+                                node.x = cellCenterX + positions[i][0];
+                                node.y = cellCenterY + positions[i][1];
+                            }
+                        });
+                    } else {
+                        // Larger groups - concentric circles
+                        const innerNodes = Math.ceil(nodes.length * 0.3); // 30% in inner circle
+                        const innerRadius = maxRadius * 0.4;
+                        const outerRadius = maxRadius * 0.8;
+                        
+                        sortedNodes.forEach((node, i) => {
+                            if (i < innerNodes) {
+                                // High-degree nodes in inner circle
+                                if (i === 0 && nodeDegrees.get(node.id) > 3) {
+                                    // Highest degree node in center
+                                    node.x = cellCenterX;
+                                    node.y = cellCenterY;
+                                } else {
+                                    const angle = ((i - 1) * 2 * Math.PI) / (innerNodes - 1) - Math.PI / 2;
+                                    node.x = cellCenterX + innerRadius * Math.cos(angle);
+                                    node.y = cellCenterY + innerRadius * Math.sin(angle);
+                                }
+                            } else {
+                                // Lower-degree nodes in outer circle
+                                const outerIndex = i - innerNodes;
+                                const outerCount = nodes.length - innerNodes;
+                                const angle = (outerIndex * 2 * Math.PI) / outerCount - Math.PI / 2;
+                                node.x = cellCenterX + outerRadius * Math.cos(angle);
+                                node.y = cellCenterY + outerRadius * Math.sin(angle);
+                            }
+                        });
+                    }
                 }
             });
             
-            // Create force simulation with repository boundaries
+            // Create force simulation but don't start it
             simulation = d3.forceSimulation(data.nodes)
                 .force("link", d3.forceLink(data.links).id(d => d.id)
-                    .distance(60)  // Increased distance for looser links
-                    .strength(0.2)) // Reduced strength for more flexibility
-                .force("charge", d3.forceManyBody().strength(-150))
+                    .distance(100)  // Much larger distance for very loose links
+                    .strength(0.01)) // Extremely low strength to reduce tension
+                .force("charge", d3.forceManyBody().strength(-50)) // Much reduced repulsion
                 .force("collision", d3.forceCollide().radius(25))
                 .force("repositoryBounds", forceRepositoryBounds()) // Custom force to keep nodes within their repository
-                .alpha(0.5)
-                .alphaDecay(0.02);
+                .stop(); // Stop immediately - don't run simulation at all
             
             // Create links as curved paths
             const link = g.append("g")
@@ -667,7 +724,13 @@
                 .data(data.links)
                 .enter().append("path")
                 .attr("class", "link")
-                .attr("fill", "none");
+                .attr("fill", "none")
+                .attr("d", d => {
+                    const dx = d.target.x - d.source.x;
+                    const dy = d.target.y - d.source.y;
+                    const dr = Math.sqrt(dx * dx + dy * dy) * 0.8;
+                    return `M${d.source.x},${d.source.y} Q${(d.source.x + d.target.x) / 2},${(d.source.y + d.target.y) / 2 + dr / 2} ${d.target.x},${d.target.y}`;
+                });
             
             // Create nodes with drag functionality
             const node = g.append("g")
@@ -675,6 +738,11 @@
                 .data(data.nodes)
                 .enter().append("g")
                 .attr("class", "node")
+                .attr("transform", d => `translate(${d.x},${d.y})`) // Position immediately
+                .on("click", function(event, d) {
+                    event.stopPropagation();
+                    highlightConnectedNodes(d, data);
+                })
                 .call(d3.drag()
                     .on("start", dragstarted)
                     .on("drag", dragged)
@@ -758,16 +826,17 @@
                 link.attr("d", d => {
                     const dx = d.target.x - d.source.x;
                     const dy = d.target.y - d.source.y;
-                    const dr = Math.sqrt(dx * dx + dy * dy) * 0.5; // Curve radius
+                    const dr = Math.sqrt(dx * dx + dy * dy) * 0.8; // Larger curve radius for more relaxed curves
                     
-                    // Create a curved path
-                    return `M${d.source.x},${d.source.y} Q${(d.source.x + d.target.x) / 2},${(d.source.y + d.target.y) / 2 - dr / 3} ${d.target.x},${d.target.y}`;
+                    // Create a curved path with more sag
+                    return `M${d.source.x},${d.source.y} Q${(d.source.x + d.target.x) / 2},${(d.source.y + d.target.y) / 2 + dr / 2} ${d.target.x},${d.target.y}`;
                 });
                 
                 node.attr("transform", d => `translate(${d.x},${d.y})`);
                 
                 // Do NOT update repository groups here - they should remain fixed
             });
+            
             
             // No simulation updates needed since we stopped it
             
@@ -866,15 +935,100 @@
                 svg.call(zoom.transform, transform);
             }
             
+            // Add click handler to SVG to clear highlights
+            svg.on("click", function(event) {
+                // Only clear if clicking on background (not on nodes)
+                if (event.target.tagName === 'svg' || event.target.classList.contains('repo-group')) {
+                    clearHighlights();
+                }
+            });
+            
             } catch (error) {
                 console.error('Error in displayGraph:', error);
                 showError('Failed to display graph: ' + error.message);
             }
         }
         
+        // Function to find all dependencies required to build a project (transitive dependencies)
+        function findBuildDependencies(nodeId, data) {
+            console.log(`Finding build dependencies for: ${nodeId}`);
+            const dependencies = new Set([nodeId]);
+            const toProcess = [nodeId];
+            
+            while (toProcess.length > 0) {
+                const current = toProcess.pop();
+                console.log(`  Processing: ${current}`);
+                
+                // Find all nodes that the current node depends on
+                // In the link format: source -> target means source depends on target
+                data.links.forEach(link => {
+                    // Handle both object and string formats
+                    const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
+                    const targetId = typeof link.target === 'object' ? link.target.id : link.target;
+                    
+                    // If current node is the source (it depends on target), add target as dependency
+                    if (sourceId === current) {
+                        const dependency = targetId;
+                        if (!dependencies.has(dependency)) {
+                            console.log(`    ${current} depends on ${dependency}`);
+                            dependencies.add(dependency);
+                            toProcess.push(dependency);
+                        }
+                    }
+                });
+            }
+            
+            console.log(`Total dependencies for ${nodeId}:`, Array.from(dependencies));
+            return dependencies;
+        }
+        
+        // Function to highlight build dependencies
+        function highlightConnectedNodes(clickedNode, data) {
+            const buildDependencies = findBuildDependencies(clickedNode.id, data);
+            
+            // Update nodes - hide those not in build dependencies
+            d3.selectAll('.node')
+                .classed('highlighted', d => d.id === clickedNode.id)
+                .classed('hidden', d => !buildDependencies.has(d.id));
+            
+            // Update links - hide those not part of the dependency chain
+            d3.selectAll('.link')
+                .classed('highlighted', d => {
+                    const sourceId = typeof d.source === 'object' ? d.source.id : d.source;
+                    const targetId = typeof d.target === 'object' ? d.target.id : d.target;
+                    // Highlight if both nodes are in dependencies AND the link points TO a dependency
+                    return buildDependencies.has(sourceId) && buildDependencies.has(targetId) && targetId !== clickedNode.id;
+                })
+                .classed('hidden', d => {
+                    const sourceId = typeof d.source === 'object' ? d.source.id : d.source;
+                    const targetId = typeof d.target === 'object' ? d.target.id : d.target;
+                    return !buildDependencies.has(sourceId) || !buildDependencies.has(targetId);
+                });
+            
+            // Hide repository frames that have no visible nodes
+            d3.selectAll('.repo-group-container').each(function(d) {
+                const hasVisibleNodes = d.nodes.some(node => buildDependencies.has(node.id));
+                d3.select(this).classed('hidden', !hasVisibleNodes);
+            });
+        }
+        
+        // Function to clear highlights
+        function clearHighlights() {
+            d3.selectAll('.node')
+                .classed('highlighted', false)
+                .classed('hidden', false);
+            
+            d3.selectAll('.link')
+                .classed('highlighted', false)
+                .classed('hidden', false);
+            
+            d3.selectAll('.repo-group-container')
+                .classed('hidden', false);
+        }
+        
         // Drag functions with repository boundary constraints
         function dragstarted(event, d) {
-            if (!event.active) simulation.alphaTarget(0.3).restart();
+            // Don't restart simulation
             d.fx = d.x;
             d.fy = d.y;
         }
@@ -887,18 +1041,31 @@
                 const padding = 15;
                 
                 // Constrain dragged position to repository bounds
-                d.fx = Math.max(rect.x + padding, Math.min(rect.x + rect.width - padding, event.x));
-                d.fy = Math.max(rect.y + padding + 20, Math.min(rect.y + rect.height - padding, event.y));
+                d.x = Math.max(rect.x + padding, Math.min(rect.x + rect.width - padding, event.x));
+                d.y = Math.max(rect.y + padding + 20, Math.min(rect.y + rect.height - padding, event.y));
             } else {
-                d.fx = event.x;
-                d.fy = event.y;
+                d.x = event.x;
+                d.y = event.y;
             }
+            
+            // Update node position immediately
+            d3.select(this).attr("transform", `translate(${d.x},${d.y})`);
+            
+            // Update connected links
+            d3.selectAll('.link')
+                .filter(l => l.source.id === d.id || l.target.id === d.id)
+                .attr("d", linkData => {
+                    const dx = linkData.target.x - linkData.source.x;
+                    const dy = linkData.target.y - linkData.source.y;
+                    const dr = Math.sqrt(dx * dx + dy * dy) * 0.8;
+                    return `M${linkData.source.x},${linkData.source.y} Q${(linkData.source.x + linkData.target.x) / 2},${(linkData.source.y + linkData.target.y) / 2 + dr / 2} ${linkData.target.x},${linkData.target.y}`;
+                });
         }
         
         function dragended(event, d) {
-            if (!event.active) simulation.alphaTarget(0);
-            d.fx = null;
-            d.fy = null;
+            // Keep position fixed
+            d.fx = d.x;
+            d.fy = d.y;
         }
         
         
@@ -1650,9 +1817,9 @@
                     .attr("x2", d => d.target.x)
                     .attr("y2", d => d.target.y);
                 
-                // Restart simulation with very low alpha to keep it running but not disturb positions
+                // Stop simulation completely to prevent shaking
                 if (simulation) {
-                    simulation.alpha(0.01).restart();
+                    simulation.stop();
                 }
                 
                 // Zoom out to show all repositories if needed
@@ -1725,14 +1892,6 @@
         
         // Repository groups are always visible
         
-        // Snap to grid settings
-        let snapToGrid = false;
-        const gridSize = 20;
-        
-        function snapToGridValue(value) {
-            if (!snapToGrid) return value;
-            return Math.round(value / gridSize) * gridSize;
-        }
         
         // Check if two rectangles overlap
         function rectanglesOverlap(rect1, rect2) {
@@ -1819,9 +1978,9 @@
             const dx = event.x - d.dragStartX;
             const dy = event.y - d.dragStartY;
             
-            // Update rect position with optional snap-to-grid
-            const newX = snapToGridValue(d.rectStartX + dx);
-            const newY = snapToGridValue(d.rectStartY + dy);
+            // Update rect position
+            const newX = d.rectStartX + dx;
+            const newY = d.rectStartY + dy;
             
             // Create test rectangle
             const testRect = {
@@ -1889,8 +2048,14 @@
                 .filter(n => d.nodes.includes(n))
                 .attr("transform", n => `translate(${n.x},${n.y})`);
             
-            // Update links
-            simulation.alpha(0.1).restart();
+            // Update links manually without restarting simulation
+            d3.selectAll('.link')
+                .attr("d", linkData => {
+                    const dx = linkData.target.x - linkData.source.x;
+                    const dy = linkData.target.y - linkData.source.y;
+                    const dr = Math.sqrt(dx * dx + dy * dy) * 0.8;
+                    return `M${linkData.source.x},${linkData.source.y} Q${(linkData.source.x + linkData.target.x) / 2},${(linkData.source.y + linkData.target.y) / 2 + dr / 2} ${linkData.target.x},${linkData.target.y}`;
+                });
         }
         
         function framesDragended(event, d) {
@@ -2039,8 +2204,7 @@
             });
             
             // Update status
-            document.getElementById('group-status').textContent = 
-                `Showing ${repositoriesToDraw.length} repository groups in grid layout (${gridCols}×${gridRows})`;
+            document.getElementById('group-status').textContent = '';
             
             console.log('Repository groups updated');
         }
