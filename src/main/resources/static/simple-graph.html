@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Dependencies Graph</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .header {
+            background-color: #333;
+            color: white;
+            padding: 1rem;
+            text-align: center;
+        }
+        
+        .controls {
+            padding: 1rem;
+            background-color: #f5f5f5;
+        }
+        
+        .controls button {
+            padding: 8px 15px;
+            margin: 0 5px;
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .controls button:hover {
+            background-color: #1976D2;
+        }
+        
+        #status {
+            display: inline-block;
+            margin-left: 20px;
+            color: #666;
+        }
+        
+        #graph {
+            width: 100%;
+            height: 600px;
+            border: 1px solid #ddd;
+        }
+        
+        .node {
+            cursor: pointer;
+        }
+        
+        .node circle {
+            stroke: #fff;
+            stroke-width: 2px;
+        }
+        
+        .node text {
+            font-size: 12px;
+            pointer-events: none;
+        }
+        
+        .link {
+            stroke: #999;
+            stroke-opacity: 0.6;
+            stroke-width: 2px;
+            marker-end: url(#arrowhead);
+        }
+        
+        .repo-group {
+            fill: #e3f2fd;
+            fill-opacity: 0.3;
+            stroke: #1976D2;
+            stroke-width: 3px;
+            stroke-dasharray: 10,5;
+            rx: 15;
+            ry: 15;
+        }
+        
+        .single-repo-group {
+            fill: #f5f5f5;
+            fill-opacity: 0.2;
+            stroke: #757575;
+            stroke-width: 2px;
+            stroke-dasharray: none;
+            rx: 10;
+            ry: 10;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Dependencies Analyzer - Simple View</h1>
+    </div>
+    
+    <div class="controls">
+        <button onclick="toggleGroups()">Toggle Repository Groups</button>
+        <button onclick="applyGridLayout()">Apply Grid Layout</button>
+        <button onclick="resetView()">Reset View</button>
+        <span id="status">Loading...</span>
+    </div>
+    
+    <svg id="graph"></svg>
+    
+    <script>
+        let data = null;
+        let simulation = null;
+        let groupsVisible = false;
+        let svg, g, width, height, zoom;
+        let groupLayer, nodeLayer, linkLayer;
+        
+        // Initialize
+        function init() {
+            svg = d3.select('#graph');
+            width = window.innerWidth;
+            height = 600;
+            
+            svg.attr('width', width).attr('height', height);
+            
+            // Add arrow marker
+            svg.append('defs').append('marker')
+                .attr('id', 'arrowhead')
+                .attr('viewBox', '-0 -5 10 10')
+                .attr('refX', 25)
+                .attr('refY', 0)
+                .attr('orient', 'auto')
+                .attr('markerWidth', 8)
+                .attr('markerHeight', 8)
+                .append('path')
+                .attr('d', 'M 0,-5 L 10 ,0 L 0,5')
+                .attr('fill', '#999');
+            
+            // Create zoom
+            zoom = d3.zoom()
+                .scaleExtent([0.1, 5])
+                .on('zoom', (event) => {
+                    g.attr('transform', event.transform);
+                });
+            
+            svg.call(zoom);
+            
+            // Create main group
+            g = svg.append('g');
+            
+            // Create layers
+            groupLayer = g.append('g').attr('class', 'groups');
+            linkLayer = g.append('g').attr('class', 'links');
+            nodeLayer = g.append('g').attr('class', 'nodes');
+            
+            // Load data
+            loadData();
+        }
+        
+        function loadData() {
+            fetch('/api/dependencies-analysis')
+                .then(response => response.json())
+                .then(json => {
+                    data = json;
+                    document.getElementById('status').textContent = 
+                        `Loaded ${data.nodes.length} nodes, ${data.links.length} links`;
+                    drawGraph();
+                })
+                .catch(error => {
+                    document.getElementById('status').textContent = 'Error: ' + error.message;
+                    console.error(error);
+                });
+        }
+        
+        function drawGraph() {
+            // Color scale
+            const color = d3.scaleOrdinal(d3.schemeCategory10);
+            
+            // Create simulation
+            simulation = d3.forceSimulation(data.nodes)
+                .force('link', d3.forceLink(data.links).id(d => d.id).distance(100))
+                .force('charge', d3.forceManyBody().strength(-400))
+                .force('center', d3.forceCenter(width / 2, height / 2))
+                .force('collision', d3.forceCollide().radius(30));
+            
+            // Create links
+            const link = linkLayer.selectAll('line')
+                .data(data.links)
+                .enter().append('line')
+                .attr('class', 'link');
+            
+            // Create nodes
+            const node = nodeLayer.selectAll('g')
+                .data(data.nodes)
+                .enter().append('g')
+                .attr('class', 'node')
+                .call(d3.drag()
+                    .on('start', dragstarted)
+                    .on('drag', dragged)
+                    .on('end', dragended));
+            
+            node.append('circle')
+                .attr('r', 12)
+                .attr('fill', d => color(d.nodeGroup));
+            
+            node.append('text')
+                .attr('dx', 15)
+                .attr('dy', 4)
+                .text(d => d.name);
+            
+            // Update positions
+            simulation.on('tick', () => {
+                link
+                    .attr('x1', d => d.source.x)
+                    .attr('y1', d => d.source.y)
+                    .attr('x2', d => d.target.x)
+                    .attr('y2', d => d.target.y);
+                
+                node.attr('transform', d => `translate(${d.x},${d.y})`);
+            });
+            
+            // Wait for simulation to stabilize then show groups
+            setTimeout(() => {
+                groupsVisible = true;
+                drawGroups();
+            }, 3000);
+        }
+        
+        function drawGroups() {
+            groupLayer.selectAll('*').remove();
+            
+            if (!groupsVisible || !data) return;
+            
+            // Group nodes by repository
+            const groups = {};
+            data.nodes.forEach(node => {
+                if (!groups[node.nodeGroup]) {
+                    groups[node.nodeGroup] = [];
+                }
+                groups[node.nodeGroup].push(node);
+            });
+            
+            // Sort repositories by project count for better layout
+            const sortedGroups = Object.entries(groups).sort((a, b) => b[1].length - a[1].length);
+            
+            // Draw rectangles for each group
+            sortedGroups.forEach(([repo, nodes], index) => {
+                if (nodes.length === 0 || nodes.some(n => !n.x || !n.y)) return;
+                
+                const padding = nodes.length > 1 ? 40 : 25;
+                const xs = nodes.map(n => n.x);
+                const ys = nodes.map(n => n.y);
+                
+                const minX = Math.min(...xs) - padding;
+                const maxX = Math.max(...xs) + padding;
+                const minY = Math.min(...ys) - padding;
+                const maxY = Math.max(...ys) + padding;
+                
+                groupLayer.append('rect')
+                    .attr('class', nodes.length > 1 ? 'repo-group' : 'single-repo-group')
+                    .attr('x', minX)
+                    .attr('y', minY)
+                    .attr('width', maxX - minX)
+                    .attr('height', maxY - minY);
+                
+                // Add label
+                groupLayer.append('text')
+                    .attr('x', minX + 5)
+                    .attr('y', minY - 5)
+                    .attr('font-size', '14px')
+                    .attr('font-weight', 'bold')
+                    .attr('fill', '#1976D2')
+                    .text(repo);
+            });
+            
+            document.getElementById('status').textContent = 
+                `Showing ${Object.keys(groups).length} repository groups`;
+        }
+        
+        function toggleGroups() {
+            groupsVisible = !groupsVisible;
+            drawGroups();
+            if (!groupsVisible) {
+                document.getElementById('status').textContent = 'Repository groups hidden';
+            }
+        }
+        
+        function resetView() {
+            svg.transition().duration(750).call(
+                zoom.transform,
+                d3.zoomIdentity
+            );
+        }
+        
+        // Apply grid layout to prevent overlaps
+        function applyGridLayout() {
+            if (!data) return;
+            
+            // Stop simulation
+            simulation.stop();
+            
+            // Group nodes by repository
+            const repoGroups = {};
+            data.nodes.forEach(node => {
+                if (!repoGroups[node.nodeGroup]) {
+                    repoGroups[node.nodeGroup] = [];
+                }
+                repoGroups[node.nodeGroup].push(node);
+            });
+            
+            // Sort by size
+            const sortedRepos = Object.entries(repoGroups).sort((a, b) => b[1].length - a[1].length);
+            
+            // Calculate grid
+            const margin = 50;
+            const cols = 7; // Fixed columns for better layout
+            const cellWidth = (width - 2 * margin) / cols;
+            const cellHeight = 150; // Fixed height
+            
+            // Position each repository
+            sortedRepos.forEach(([repo, nodes], index) => {
+                const col = index % cols;
+                const row = Math.floor(index / cols);
+                const centerX = margin + col * cellWidth + cellWidth / 2;
+                const centerY = margin + row * cellHeight + cellHeight / 2;
+                
+                // Position nodes in repository
+                if (nodes.length === 1) {
+                    nodes[0].x = centerX;
+                    nodes[0].y = centerY;
+                } else {
+                    const angleStep = (2 * Math.PI) / nodes.length;
+                    const radius = Math.min(cellWidth, cellHeight) / 4;
+                    nodes.forEach((node, i) => {
+                        node.x = centerX + radius * Math.cos(i * angleStep);
+                        node.y = centerY + radius * Math.sin(i * angleStep);
+                    });
+                }
+            });
+            
+            // Update positions
+            d3.selectAll('.node').attr('transform', d => `translate(${d.x},${d.y})`);
+            d3.selectAll('.link')
+                .attr('x1', d => d.source.x)
+                .attr('y1', d => d.source.y)
+                .attr('x2', d => d.target.x)
+                .attr('y2', d => d.target.y);
+            
+            // Redraw groups
+            drawGroups();
+        }
+        
+        // Drag functions
+        function dragstarted(event, d) {
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            d.fx = d.x;
+            d.fy = d.y;
+        }
+        
+        function dragged(event, d) {
+            d.fx = event.x;
+            d.fy = event.y;
+        }
+        
+        function dragended(event, d) {
+            if (!event.active) simulation.alphaTarget(0);
+            d.fx = null;
+            d.fy = null;
+        }
+        
+        // Initialize on load
+        window.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

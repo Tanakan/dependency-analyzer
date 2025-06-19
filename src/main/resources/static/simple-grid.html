@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Grid Layout</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        
+        #graph {
+            width: 100%;
+            height: 800px;
+            border: 1px solid #ddd;
+        }
+        
+        .repo-rect {
+            fill: #f0f0f0;
+            stroke: #666;
+            stroke-width: 2px;
+        }
+        
+        .repo-rect.multi {
+            fill: #e3f2fd;
+            stroke: #1976D2;
+            stroke-width: 3px;
+            stroke-dasharray: 10,5;
+        }
+        
+        .repo-label {
+            font-size: 12px;
+            font-weight: bold;
+            fill: #333;
+        }
+        
+        .node circle {
+            fill: #2196F3;
+            stroke: white;
+            stroke-width: 2px;
+        }
+        
+        .link {
+            stroke: #999;
+            stroke-width: 1px;
+            opacity: 0.6;
+        }
+    </style>
+</head>
+<body>
+    <h1>Simple Grid Layout - Data Structure Based</h1>
+    <button onclick="loadData()">Load Data</button>
+    <button onclick="applyGridLayout()">Apply Grid Layout</button>
+    <span id="status"></span>
+    
+    <svg id="graph"></svg>
+    
+    <script>
+        // データ構造で管理
+        let graphData = null;
+        let repositoryLayout = [];  // リポジトリのレイアウト情報を保持
+        
+        function loadData() {
+            fetch('/api/dependencies-analysis')
+                .then(response => response.json())
+                .then(data => {
+                    graphData = data;
+                    
+                    // リポジトリ毎にデータを整理
+                    const repositories = {};
+                    data.nodes.forEach(node => {
+                        if (!repositories[node.nodeGroup]) {
+                            repositories[node.nodeGroup] = {
+                                name: node.nodeGroup,
+                                nodes: []
+                            };
+                        }
+                        repositories[node.nodeGroup].nodes.push(node);
+                    });
+                    
+                    // 配列に変換してソート
+                    repositoryLayout = Object.values(repositories)
+                        .sort((a, b) => b.nodes.length - a.nodes.length);
+                    
+                    document.getElementById('status').textContent = 
+                        `Loaded ${data.nodes.length} nodes in ${repositoryLayout.length} repositories`;
+                    
+                    drawGraph();
+                })
+                .catch(error => {
+                    document.getElementById('status').textContent = 'Error: ' + error.message;
+                });
+        }
+        
+        function drawGraph() {
+            const svg = d3.select('#graph');
+            svg.selectAll('*').remove();
+            
+            const width = svg.node().clientWidth;
+            const height = svg.node().clientHeight;
+            
+            const g = svg.append('g');
+            
+            // レイヤーを作成
+            const rectLayer = g.append('g').attr('class', 'rect-layer');
+            const linkLayer = g.append('g').attr('class', 'link-layer');
+            const nodeLayer = g.append('g').attr('class', 'node-layer');
+            
+            // 初期位置（ランダム）
+            graphData.nodes.forEach(node => {
+                node.x = Math.random() * width;
+                node.y = Math.random() * height;
+            });
+            
+            // リンクを描画
+            const links = linkLayer.selectAll('.link')
+                .data(graphData.links)
+                .enter().append('line')
+                .attr('class', 'link');
+            
+            // ノードを描画
+            const nodes = nodeLayer.selectAll('.node')
+                .data(graphData.nodes)
+                .enter().append('g')
+                .attr('class', 'node');
+            
+            nodes.append('circle')
+                .attr('r', 8);
+            
+            nodes.append('text')
+                .attr('dx', 10)
+                .attr('dy', 3)
+                .attr('font-size', '10px')
+                .text(d => d.name);
+            
+            updatePositions();
+        }
+        
+        function applyGridLayout() {
+            if (!graphData || !repositoryLayout.length) {
+                alert('Load data first!');
+                return;
+            }
+            
+            const svg = d3.select('#graph');
+            const width = svg.node().clientWidth;
+            const height = svg.node().clientHeight;
+            
+            // グリッドパラメータ
+            const cols = 7;
+            const margin = 50;
+            const cellWidth = (width - 2 * margin) / cols;
+            const cellHeight = 150;
+            const cellPadding = 5;  // セル間の隙間
+            
+            // 各リポジトリにグリッド位置を割り当て
+            repositoryLayout.forEach((repo, index) => {
+                const col = index % cols;
+                const row = Math.floor(index / cols);
+                
+                // リポジトリの矩形情報を保存
+                repo.rect = {
+                    x: margin + col * cellWidth + cellPadding,
+                    y: margin + row * cellHeight + cellPadding,
+                    width: cellWidth - 2 * cellPadding,
+                    height: cellHeight - 2 * cellPadding
+                };
+                
+                // リポジトリ内のノード配置
+                const centerX = repo.rect.x + repo.rect.width / 2;
+                const centerY = repo.rect.y + repo.rect.height / 2;
+                
+                if (repo.nodes.length === 1) {
+                    repo.nodes[0].x = centerX;
+                    repo.nodes[0].y = centerY;
+                } else {
+                    const radius = Math.min(repo.rect.width, repo.rect.height) / 3;
+                    repo.nodes.forEach((node, i) => {
+                        const angle = (i * 2 * Math.PI) / repo.nodes.length;
+                        node.x = centerX + radius * Math.cos(angle);
+                        node.y = centerY + radius * Math.sin(angle);
+                    });
+                }
+            });
+            
+            // 矩形を描画
+            const rectLayer = d3.select('.rect-layer');
+            rectLayer.selectAll('*').remove();
+            
+            const repoGroups = rectLayer.selectAll('.repo-group')
+                .data(repositoryLayout)
+                .enter().append('g')
+                .attr('class', 'repo-group');
+            
+            // 矩形
+            repoGroups.append('rect')
+                .attr('class', d => d.nodes.length > 1 ? 'repo-rect multi' : 'repo-rect')
+                .attr('x', d => d.rect.x)
+                .attr('y', d => d.rect.y)
+                .attr('width', d => d.rect.width)
+                .attr('height', d => d.rect.height)
+                .attr('rx', 8);
+            
+            // ラベル
+            repoGroups.append('text')
+                .attr('class', 'repo-label')
+                .attr('x', d => d.rect.x + 5)
+                .attr('y', d => d.rect.y + 15)
+                .text(d => d.name);
+            
+            // ノードとリンクの位置を更新
+            updatePositions();
+            
+            // オーバーラップチェック
+            checkOverlaps();
+        }
+        
+        function updatePositions() {
+            d3.selectAll('.node')
+                .attr('transform', d => `translate(${d.x},${d.y})`);
+            
+            d3.selectAll('.link')
+                .attr('x1', d => d.source.x || graphData.nodes.find(n => n.id === d.source).x)
+                .attr('y1', d => d.source.y || graphData.nodes.find(n => n.id === d.source).y)
+                .attr('x2', d => d.target.x || graphData.nodes.find(n => n.id === d.target).x)
+                .attr('y2', d => d.target.y || graphData.nodes.find(n => n.id === d.target).y);
+        }
+        
+        function checkOverlaps() {
+            let overlapCount = 0;
+            
+            for (let i = 0; i < repositoryLayout.length; i++) {
+                for (let j = i + 1; j < repositoryLayout.length; j++) {
+                    const r1 = repositoryLayout[i].rect;
+                    const r2 = repositoryLayout[j].rect;
+                    
+                    // 矩形が重なっているかチェック
+                    if (!(r1.x + r1.width < r2.x || 
+                          r2.x + r2.width < r1.x ||
+                          r1.y + r1.height < r2.y || 
+                          r2.y + r2.height < r1.y)) {
+                        overlapCount++;
+                        console.log(`Overlap: ${repositoryLayout[i].name} and ${repositoryLayout[j].name}`);
+                    }
+                }
+            }
+            
+            document.getElementById('status').textContent = 
+                overlapCount === 0 
+                    ? `✅ Grid layout applied: ${repositoryLayout.length} repositories, NO OVERLAPS`
+                    : `❌ Grid layout: ${overlapCount} overlaps detected`;
+        }
+    </script>
+</body>
+</html>

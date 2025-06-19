@@ -7,7 +7,6 @@ import com.example.dependencies.analyzer.model.ProjectType;
 import com.example.dependencies.analyzer.parser.GradleBuildParser;
 import com.example.dependencies.analyzer.parser.MavenPomParser;
 import com.example.dependencies.analyzer.visualizer.DependencyGraphVisualizer;
-import com.example.dependencies.analyzer.visualizer.HtmlGraphVisualizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,7 +19,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import java.awt.Desktop;
 import java.net.URI;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -77,19 +75,9 @@ public class DependencyAnalyzer {
             logger.error("Failed to save analysis data as JSON", e);
         }
         
-        // Generate HTML visualization
-        HtmlGraphVisualizer htmlVisualizer = new HtmlGraphVisualizer();
-        Path htmlOutputPath = Paths.get("dependency-graph.html");
-        try {
-            htmlVisualizer.generateHtmlVisualization(inHouseDependencies, htmlOutputPath);
-            logger.info("HTML visualization generated: {}", htmlOutputPath.toAbsolutePath());
-            System.out.println("\nHTML visualization saved to: " + htmlOutputPath.toAbsolutePath());
-            
-            // Try to open in browser
-            openInBrowser(htmlOutputPath);
-        } catch (IOException e) {
-            logger.error("Failed to generate HTML visualization", e);
-        }
+        // HTML visualization is now handled by the web interface
+        // No need to generate static HTML file
+        logger.info("Analysis complete. Access the web interface at http://localhost:8080/");
     }
     
     public List<Path> findGitRepositories(Path rootPath) throws IOException {
@@ -190,19 +178,6 @@ public class DependencyAnalyzer {
         
         logger.warn("Created placeholder project for: {} - {}", buildFile, project.getFullName());
         return project;
-    }
-    
-    private void openInBrowser(Path htmlPath) {
-        try {
-            if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
-                Desktop.getDesktop().browse(htmlPath.toAbsolutePath().toUri());
-                logger.info("Opened HTML visualization in browser");
-            } else {
-                logger.warn("Desktop browsing not supported on this platform");
-            }
-        } catch (Exception e) {
-            logger.warn("Could not open browser automatically: " + e.getMessage());
-        }
     }
     
     private void saveAnalysisDataAsJson(Map<Project, List<Dependency>> inHouseDependencies, List<Project> allProjects) throws IOException {

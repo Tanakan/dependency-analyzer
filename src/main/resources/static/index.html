@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dependencies Analyzer</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
         body {
@@ -149,8 +150,9 @@
         .link {
             fill: none;
             stroke: #999;
-            stroke-opacity: 0.6;
+            stroke-opacity: 0.4;
             stroke-width: 2px;
+            stroke-linecap: round;
             marker-end: url(#arrowhead);
         }
         
@@ -333,6 +335,50 @@
         h4:hover {
             background-color: #f0f0f0;
         }
+        
+        .repo-group {
+            fill: #e3f2fd;
+            fill-opacity: 0.9;
+            stroke: #1976D2;
+            stroke-width: 4px;
+            stroke-dasharray: 15,5;
+            rx: 20;
+            ry: 20;
+        }
+        
+        .repo-group-label {
+            font-size: 18px;
+            font-weight: bold;
+            fill: #0d47a1;
+            text-anchor: start;
+            font-family: Arial, sans-serif;
+            text-shadow: 1px 1px 2px rgba(255,255,255,0.8);
+        }
+        
+        .groups-layer, .static-groups-layer {
+            pointer-events: all;
+        }
+        
+        .repo-group {
+            cursor: move;
+            transition: filter 0.2s;
+        }
+        
+        .repo-group:hover {
+            stroke-opacity: 0.8;
+            filter: brightness(1.1);
+        }
+        
+        .repo-group.dragging {
+            filter: brightness(1.2) drop-shadow(0 5px 10px rgba(0,0,0,0.3));
+            stroke-width: 6px !important;
+        }
+        
+        .repo-group.collision-warning {
+            stroke: #ff5252 !important;
+            stroke-width: 6px !important;
+            stroke-dasharray: 10,5 !important;
+        }
     </style>
 </head>
 <body>
@@ -352,8 +398,15 @@
         <div style="margin-top: 10px; font-size: 14px; color: #666;">
             Automatically loaded from dependencies-analysis.json file
         </div>
+        <div style="margin-top: 15px;">
+            <label style="display: inline-flex; align-items: center; cursor: pointer;">
+                <input type="checkbox" id="snapToGridToggle" style="margin-right: 8px;">
+                <span style="font-size: 14px;">Snap to Grid (20px)</span>
+            </label>
+            <button id="resetLayoutBtn" style="margin-left: 20px; padding: 5px 15px; font-size: 14px;">Reset Layout</button>
+        </div>
         <div style="margin-top: 10px;">
-            <a href="/dependency-graph-dynamic.html" style="color: #007bff; text-decoration: none;">View Dynamic Graph (Shows Duplicates)</a>
+            <span id="group-status" style="color: #666; font-size: 14px; font-weight: bold;">Repository frames are always visible with no overlaps (Grid Layout)</span>
         </div>
     </div>
     
@@ -405,10 +458,32 @@
         let svg, g, simulation, zoom;
         let currentData = null;
         let selectedProject = null;
+        let groupsVisible = true;
+        let allProjectRepos = [];
+        let isGridLayout = false;
+        let gridParameters = null;
+        let repositoryLayoutData = []; // New data structure for repository rectangles
+        let gridCols = 6;
+        let gridRows = 1;
         
         // Automatically load data when page loads
         window.addEventListener('DOMContentLoaded', function() {
             loadAnalysisData();
+            
+            // Setup snap-to-grid toggle
+            document.getElementById('snapToGridToggle').addEventListener('change', function(e) {
+                snapToGrid = e.target.checked;
+            });
+            
+            // Setup reset layout button
+            document.getElementById('resetLayoutBtn').addEventListener('click', function() {
+                if (currentData) {
+                    // Clear existing visualization
+                    d3.select('#graph').selectAll('*').remove();
+                    // Recreate with original layout
+                    drawGraph(currentData);
+                }
+            });
         });
         
         function loadAnalysisData() {
@@ -416,7 +491,7 @@
             document.querySelector('.error').style.display = 'none';
             document.getElementById('graphContainer').style.display = 'none';
             
-            fetch('/api/dependencies/data')
+            fetch('/api/dependencies-analysis')
             .then(response => {
                 if (!response.ok) {
                     throw new Error('Failed to load data');
@@ -446,10 +521,16 @@
         }
         
         function displayGraph(data) {
-            document.getElementById('graphContainer').style.display = 'flex';
-            
-            // Clear previous graph
-            d3.select("#graph").selectAll("*").remove();
+            try {
+                document.getElementById('graphContainer').style.display = 'flex';
+                
+                // Clear previous graph
+                d3.select("#graph").selectAll("*").remove();
+                
+                // Reset grid layout flag and data
+                isGridLayout = false;
+                gridParameters = null;
+                repositoryLayoutData = [];
             
             // Set up SVG
             svg = d3.select("#graph");
@@ -476,29 +557,119 @@
                 .scaleExtent([0.1, 20])
                 .on("zoom", (event) => {
                     g.attr("transform", event.transform);
+                    // Also apply transform to static groups layer so they pan/zoom but don't move with simulation
+                    d3.select(".static-groups-layer").attr("transform", event.transform);
                 });
             
             svg.call(zoom);
             
+            // Create a separate layer for repository frames that won't be affected by zoom/pan
+            const staticGroupsLayer = svg.append("g").attr("class", "static-groups-layer");
+            
             g = svg.append("g");
             
-            // Create force simulation with reduced spacing for more compact view
+            // Create groups layer (behind everything) - for dynamic groups only
+            const groupsLayer = g.append("g").attr("class", "groups-layer");
+            g.node().insertBefore(groupsLayer.node(), g.node().firstChild);
+            
+            // Find repositories with multiple projects
+            const projectsByRepo = {};
+            data.nodes.forEach(node => {
+                if (!projectsByRepo[node.nodeGroup]) {
+                    projectsByRepo[node.nodeGroup] = [];
+                }
+                projectsByRepo[node.nodeGroup].push(node);
+            });
+            
+            allProjectRepos = Object.entries(projectsByRepo)
+                .map(([repo, projects]) => ({
+                    repository: repo,
+                    projects: projects
+                }));
+            
+            console.log('All repositories found:', allProjectRepos.length);
+            console.log('Repositories:', allProjectRepos.map(r => `${r.repository} (${r.projects.length} projects)`));
+            
+            // Calculate repository positions to avoid overlaps
+            let repoPositions = calculateRepositoryPositions(projectsByRepo, width, height);
+            
+            // Always start with grid layout to prevent overlaps
+            isGridLayout = true;
+            
+            // Calculate grid layout immediately
+            const repos = Object.entries(projectsByRepo).sort((a, b) => b[1].length - a[1].length);
+            const repoCount = repos.length;
+            
+            // Fixed grid parameters
+            gridCols = 6;
+            gridRows = Math.ceil(repoCount / gridCols);
+            const cellWidth = 250;
+            const cellHeight = 180;
+            const cellMargin = 20;
+            const minMargin = 50;
+            
+            // Calculate offsets
+            const gridWidth = gridCols * cellWidth;
+            const gridHeight = gridRows * cellHeight;
+            const offsetX = Math.max(minMargin, (width - gridWidth) / 2);
+            const offsetY = Math.max(minMargin, (height - gridHeight) / 2);
+            
+            // Pre-calculate all repository positions
+            repositoryLayoutData = [];
+            repos.forEach(([repo, nodes], index) => {
+                const col = index % gridCols;
+                const row = Math.floor(index / gridCols);
+                
+                const cellLeft = offsetX + col * cellWidth;
+                const cellTop = offsetY + row * cellHeight;
+                const cellCenterX = cellLeft + cellWidth / 2;
+                const cellCenterY = cellTop + cellHeight / 2;
+                
+                repositoryLayoutData.push({
+                    name: repo,
+                    nodes: nodes,
+                    rect: {
+                        x: cellLeft + cellMargin,
+                        y: cellTop + cellMargin,
+                        width: cellWidth - 2 * cellMargin,
+                        height: cellHeight - 2 * cellMargin
+                    }
+                });
+                
+                // Set initial positions for nodes (no fixed positions)
+                if (nodes.length === 1) {
+                    nodes[0].x = cellCenterX;
+                    nodes[0].y = cellCenterY;
+                } else {
+                    const radius = Math.min(40, 15 + 3 * Math.sqrt(nodes.length));
+                    nodes.forEach((node, i) => {
+                        const angle = (i * 2 * Math.PI) / nodes.length - Math.PI / 2;
+                        node.x = cellCenterX + radius * Math.cos(angle);
+                        node.y = cellCenterY + radius * Math.sin(angle);
+                    });
+                }
+            });
+            
+            // Create force simulation with repository boundaries
             simulation = d3.forceSimulation(data.nodes)
-                .force("link", d3.forceLink(data.links).id(d => d.id).distance(100))
-                .force("charge", d3.forceManyBody().strength(-300))
-                .force("center", d3.forceCenter(width / 2, height / 2))
+                .force("link", d3.forceLink(data.links).id(d => d.id)
+                    .distance(60)  // Increased distance for looser links
+                    .strength(0.2)) // Reduced strength for more flexibility
+                .force("charge", d3.forceManyBody().strength(-150))
                 .force("collision", d3.forceCollide().radius(25))
-                .alpha(1)
+                .force("repositoryBounds", forceRepositoryBounds()) // Custom force to keep nodes within their repository
+                .alpha(0.5)
                 .alphaDecay(0.02);
             
-            // Create links
+            // Create links as curved paths
             const link = g.append("g")
-                .selectAll("line")
+                .selectAll("path")
                 .data(data.links)
-                .enter().append("line")
-                .attr("class", "link");
+                .enter().append("path")
+                .attr("class", "link")
+                .attr("fill", "none");
             
-            // Create nodes
+            // Create nodes with drag functionality
             const node = g.append("g")
                 .selectAll("g")
                 .data(data.nodes)
@@ -583,19 +754,125 @@
             
             // Update positions on tick
             simulation.on("tick", () => {
-                link
-                    .attr("x1", d => d.source.x)
-                    .attr("y1", d => d.source.y)
-                    .attr("x2", d => d.target.x)
-                    .attr("y2", d => d.target.y);
+                // Update links with curved paths
+                link.attr("d", d => {
+                    const dx = d.target.x - d.source.x;
+                    const dy = d.target.y - d.source.y;
+                    const dr = Math.sqrt(dx * dx + dy * dy) * 0.5; // Curve radius
+                    
+                    // Create a curved path
+                    return `M${d.source.x},${d.source.y} Q${(d.source.x + d.target.x) / 2},${(d.source.y + d.target.y) / 2 - dr / 3} ${d.target.x},${d.target.y}`;
+                });
                 
                 node.attr("transform", d => `translate(${d.x},${d.y})`);
+                
+                // Do NOT update repository groups here - they should remain fixed
             });
             
+            // No simulation updates needed since we stopped it
+            
+            // Function to draw repository groups
+            function updateRepositoryGroups() {
+                if (!groupsVisible) return;
+                const groups = groupsLayer.selectAll(".repo-group-container")
+                    .data(allProjectRepos);
+                
+                const groupEnter = groups.enter()
+                    .append("g")
+                    .attr("class", "repo-group-container");
+                
+                groupEnter.append("rect")
+                    .attr("class", "repo-group");
+                
+                groupEnter.append("text")
+                    .attr("class", "repo-group-label");
+                
+                groups.merge(groupEnter).each(function(d) {
+                    const group = d3.select(this);
+                    const nodes = d.projects;
+                    
+                    if (nodes.some(n => n.x === undefined || n.y === undefined)) {
+                        return; // Skip if positions not yet initialized
+                    }
+                    
+                    // Calculate bounding box with appropriate padding
+                    const padding = nodes.length > 1 ? 40 : 25;
+                    const xs = nodes.map(n => n.x);
+                    const ys = nodes.map(n => n.y);
+                    const minX = Math.min(...xs) - padding;
+                    const maxX = Math.max(...xs) + padding;
+                    const minY = Math.min(...ys) - padding;
+                    const maxY = Math.max(...ys) + padding;
+                    
+                    // Update rectangle
+                    group.select(".repo-group")
+                        .attr("x", minX)
+                        .attr("y", minY)
+                        .attr("width", maxX - minX)
+                        .attr("height", maxY - minY)
+                        .attr("rx", 15)
+                        .attr("ry", 15);
+                    
+                    // Update label with background
+                    const labelGroup = group.selectAll(".repo-label-group").data([d]);
+                    const labelGroupEnter = labelGroup.enter()
+                        .append("g")
+                        .attr("class", "repo-label-group");
+                    
+                    labelGroupEnter.append("rect")
+                        .attr("class", "repo-label-bg")
+                        .attr("fill", "white")
+                        .attr("stroke", "#2196F3")
+                        .attr("stroke-width", 2)
+                        .attr("rx", 5)
+                        .attr("ry", 5);
+                    
+                    labelGroupEnter.append("text")
+                        .attr("class", "repo-group-label");
+                    
+                    const label = group.select(".repo-group-label")
+                        .attr("x", minX + 10)
+                        .attr("y", minY - 10)
+                        .text(d.repository);
+                    
+                    // Update label background
+                    const bbox = label.node().getBBox();
+                    group.select(".repo-label-bg")
+                        .attr("x", bbox.x - 5)
+                        .attr("y", bbox.y - 3)
+                        .attr("width", bbox.width + 10)
+                        .attr("height", bbox.height + 6);
+                });
+            }
+            
             updateSidebar(data, color);
+            
+            // Draw repository frames immediately
+            forceUpdateGroups();
+            
+            // Apply zoom if needed to show all repositories
+            const totalWidth = gridCols * cellWidth + 100;
+            const totalHeight = gridRows * cellHeight + 100;
+            if (totalWidth > width || totalHeight > height) {
+                const scaleX = width / totalWidth;
+                const scaleY = height / totalHeight;
+                const scale = Math.min(scaleX, scaleY) * 0.9;
+                
+                const transform = d3.zoomIdentity
+                    .translate(width / 2, height / 2)
+                    .scale(scale)
+                    .translate(-width / 2, -height / 2);
+                
+                svg.call(zoom.transform, transform);
+            }
+            
+            } catch (error) {
+                console.error('Error in displayGraph:', error);
+                showError('Failed to display graph: ' + error.message);
+            }
         }
         
-        // Drag functions
+        // Drag functions with repository boundary constraints
         function dragstarted(event, d) {
             if (!event.active) simulation.alphaTarget(0.3).restart();
             d.fx = d.x;
@@ -603,8 +880,19 @@
         }
         
         function dragged(event, d) {
-            d.fx = event.x;
-            d.fy = event.y;
+            // Find the repository bounds for this node
+            const repoBounds = repositoryLayoutData.find(r => r.name === d.nodeGroup);
+            if (repoBounds) {
+                const rect = repoBounds.rect;
+                const padding = 15;
+                
+                // Constrain dragged position to repository bounds
+                d.fx = Math.max(rect.x + padding, Math.min(rect.x + rect.width - padding, event.x));
+                d.fy = Math.max(rect.y + padding + 20, Math.min(rect.y + rect.height - padding, event.y));
+            } else {
+                d.fx = event.x;
+                d.fy = event.y;
+            }
         }
         
         function dragended(event, d) {
@@ -620,10 +908,10 @@
             const stats = document.getElementById("stats");
             stats.innerHTML = `
                 <div class="project-item">
-                    <strong>Total Projects:</strong> ${data.stats.totalProjects}
+                    <strong>Total Projects:</strong> ${data.nodes.length}
                 </div>
                 <div class="project-item">
-                    <strong>Total Dependencies:</strong> ${data.stats.totalDependencies}
+                    <strong>Total Dependencies:</strong> ${data.links.length}
                 </div>
             `;
             
@@ -1034,8 +1322,728 @@
             });
         }
         
-        // Export debug function for testing
+        // Calculate repository positions to avoid overlaps
+        function calculateRepositoryPositions(projectsByRepo, width, height) {
+            const repos = Object.entries(projectsByRepo);
+            const repoCount = repos.length;
+            const positions = {};
+            
+            // Sort repositories by project count (larger ones first)
+            repos.sort((a, b) => b[1].length - a[1].length);
+            
+            // Use pack layout for better space utilization
+            const margin = 150;
+            const effectiveWidth = width - 2 * margin;
+            const effectiveHeight = height - 2 * margin;
+            
+            // Calculate optimal grid dimensions
+            const aspectRatio = effectiveWidth / effectiveHeight;
+            let cols = Math.ceil(Math.sqrt(repoCount * aspectRatio));
+            let rows = Math.ceil(repoCount / cols);
+            
+            // Minimum spacing between repository centers
+            const minSpacing = 250;
+            
+            // Calculate cell dimensions
+            const cellWidth = Math.max(minSpacing, effectiveWidth / cols);
+            const cellHeight = Math.max(minSpacing, effectiveHeight / rows);
+            
+            // If cells are too small, reduce columns
+            if (cellWidth < minSpacing || cellHeight < minSpacing) {
+                cols = Math.floor(effectiveWidth / minSpacing);
+                rows = Math.ceil(repoCount / cols);
+            }
+            
+            // Assign positions with guaranteed spacing
+            repos.forEach(([repo, projects], index) => {
+                const row = Math.floor(index / cols);
+                const col = index % cols;
+                
+                // Add some randomness to prevent perfect grid alignment
+                const jitterX = (Math.random() - 0.5) * 20;
+                const jitterY = (Math.random() - 0.5) * 20;
+                
+                positions[repo] = {
+                    x: margin + col * cellWidth + cellWidth / 2 + jitterX,
+                    y: margin + row * cellHeight + cellHeight / 2 + jitterY,
+                    projects: projects.length,
+                    radius: projects.length > 1 ? 80 : 50 // Estimated radius for collision detection
+                };
+            });
+            
+            return positions;
+        }
+        
+        // Enforce repository separation to prevent overlaps
+        function enforceRepositorySeparation() {
+            if (!currentData) return;
+            
+            // Group nodes by repository
+            const repoGroups = {};
+            currentData.nodes.forEach(node => {
+                if (!repoGroups[node.nodeGroup]) {
+                    repoGroups[node.nodeGroup] = [];
+                }
+                repoGroups[node.nodeGroup].push(node);
+            });
+            
+            // Calculate center of each repository group
+            const repoCenters = {};
+            Object.entries(repoGroups).forEach(([repo, nodes]) => {
+                const avgX = nodes.reduce((sum, n) => sum + n.x, 0) / nodes.length;
+                const avgY = nodes.reduce((sum, n) => sum + n.y, 0) / nodes.length;
+                repoCenters[repo] = { x: avgX, y: avgY, nodes: nodes };
+            });
+            
+            // Check for overlaps and adjust - multiple iterations
+            const repos = Object.entries(repoCenters);
+            const iterations = 5; // Multiple passes to ensure separation
+            
+            for (let iter = 0; iter < iterations; iter++) {
+                let moved = false;
+                
+                for (let i = 0; i < repos.length; i++) {
+                    for (let j = i + 1; j < repos.length; j++) {
+                        const [repo1, center1] = repos[i];
+                        const [repo2, center2] = repos[j];
+                        
+                        // Calculate current positions
+                        const c1x = center1.nodes.reduce((sum, n) => sum + n.x, 0) / center1.nodes.length;
+                        const c1y = center1.nodes.reduce((sum, n) => sum + n.y, 0) / center1.nodes.length;
+                        const c2x = center2.nodes.reduce((sum, n) => sum + n.x, 0) / center2.nodes.length;
+                        const c2y = center2.nodes.reduce((sum, n) => sum + n.y, 0) / center2.nodes.length;
+                        
+                        const dx = c2x - c1x;
+                        const dy = c2y - c1y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        
+                        // Calculate required distance based on repository sizes
+                        const radius1 = Math.max(80, center1.nodes.length * 30);
+                        const radius2 = Math.max(80, center2.nodes.length * 30);
+                        const minDistance = radius1 + radius2 + 100; // Add padding
+                        
+                        if (distance < minDistance && distance > 0) {
+                            moved = true;
+                            
+                            // Move repositories apart
+                            const angle = Math.atan2(dy, dx);
+                            const moveDistance = (minDistance - distance) / 2 + 10;
+                            
+                            // Move repo1 nodes
+                            const move1X = -moveDistance * Math.cos(angle);
+                            const move1Y = -moveDistance * Math.sin(angle);
+                            center1.nodes.forEach(node => {
+                                node.x += move1X;
+                                node.y += move1Y;
+                            });
+                            
+                            // Move repo2 nodes
+                            const move2X = moveDistance * Math.cos(angle);
+                            const move2Y = moveDistance * Math.sin(angle);
+                            center2.nodes.forEach(node => {
+                                node.x += move2X;
+                                node.y += move2Y;
+                            });
+                            
+                            // Update centers for next iteration
+                            center1.x = c1x + move1X;
+                            center1.y = c1y + move1Y;
+                            center2.x = c2x + move2X;
+                            center2.y = c2y + move2Y;
+                        }
+                    }
+                }
+                
+                if (!moved) break; // No overlaps found
+            }
+            
+            // Update node positions in the visualization
+            d3.selectAll('.node').attr("transform", d => `translate(${d.x},${d.y})`);
+            d3.selectAll('.link')
+                .attr("x1", d => d.source.x)
+                .attr("y1", d => d.source.y)
+                .attr("x2", d => d.target.x)
+                .attr("y2", d => d.target.y);
+        }
+        
+        // Function to manually separate overlapping groups
+        function separateOverlappingGroups() {
+            console.log('Separating overlapping repository groups...');
+            
+            // Reset grid layout mode and data
+            isGridLayout = false;
+            gridParameters = null;
+            repositoryLayoutData = [];
+            
+            // Stop the simulation temporarily
+            simulation.stop();
+            
+            // Apply separation
+            enforceRepositorySeparation();
+            
+            // Redraw repository groups
+            forceUpdateGroups();
+            
+            // Restart simulation with low alpha to fine-tune positions
+            simulation.alpha(0.1).restart();
+            
+            // Status update
+            document.getElementById('group-status').textContent = 'Groups separated';
+            
+            setTimeout(() => {
+                document.getElementById('group-status').textContent = 
+                    groupsVisible ? `Showing ${Object.keys(currentData ? currentData.nodes.reduce((acc, n) => {acc[n.nodeGroup] = 1; return acc;}, {}) : {}).length} repository groups` : 'Repository groups hidden';
+            }, 2000);
+        }
+        
+        // Use fixed grid layout to completely avoid overlaps
+        function useFixedLayout() {
+            if (!currentData) return;
+            
+            console.log('Applying fixed grid layout...');
+            
+            // Set grid layout flag
+            isGridLayout = true;
+            
+            // Stop simulation temporarily
+            if (simulation) {
+                simulation.stop();
+            }
+            
+            // Group nodes by repository
+            const repoGroups = {};
+            currentData.nodes.forEach(node => {
+                if (!repoGroups[node.nodeGroup]) {
+                    repoGroups[node.nodeGroup] = [];
+                }
+                repoGroups[node.nodeGroup].push(node);
+            });
+            
+            // Sort repos by project count for better visual organization
+            const repos = Object.entries(repoGroups).sort((a, b) => b[1].length - a[1].length);
+            const repoCount = repos.length;
+            
+            console.log(`Arranging ${repoCount} repositories in fixed grid`);
+            
+            // Calculate SVG dimensions
+            const svg = d3.select("#graph");
+            const svgWidth = svg.node().parentElement.clientWidth;
+            const svgHeight = svg.node().parentElement.clientHeight;
+            
+            // Fixed grid parameters with larger spacing
+            const cols = 6; // Reduce columns for more space
+            const rows = Math.ceil(repoCount / cols);
+            const cellWidth = 250;  // Fixed larger cell width
+            const cellHeight = 180; // Fixed larger cell height
+            const cellPadding = 30; // Larger padding inside each cell
+            
+            // Calculate total grid size
+            const gridWidth = cols * cellWidth;
+            const gridHeight = rows * cellHeight;
+            
+            // Center the grid in the SVG with minimum margins
+            const minMargin = 50;
+            const offsetX = Math.max(minMargin, (svgWidth - gridWidth) / 2);
+            const offsetY = Math.max(minMargin, (svgHeight - gridHeight) / 2);
+            
+            // Store grid parameters for use in forceUpdateGroups
+            gridParameters = {
+                cols: cols,
+                rows: rows,
+                cellWidth: cellWidth,
+                cellHeight: cellHeight,
+                offsetX: offsetX,
+                offsetY: offsetY,
+                repoIndexMap: {} // Map repository name to grid index
+            };
+            
+            // Clear all existing fixed positions first
+            currentData.nodes.forEach(node => {
+                delete node.fx;
+                delete node.fy;
+            });
+            
+            // Clear and rebuild repository layout data
+            repositoryLayoutData = [];
+            
+            // Position each repository in its cell
+            repos.forEach(([repo, nodes], index) => {
+                const col = index % cols;
+                const row = Math.floor(index / cols);
+                
+                // Store repository index in map
+                gridParameters.repoIndexMap[repo] = index;
+                
+                // Calculate cell bounds
+                const cellLeft = offsetX + col * cellWidth;
+                const cellTop = offsetY + row * cellHeight;
+                const cellCenterX = cellLeft + cellWidth / 2;
+                const cellCenterY = cellTop + cellHeight / 2;
+                
+                // Calculate rectangle bounds for this repository with larger margins
+                const cellMargin = 20; // Much larger margin to ensure no overlap
+                const rectBounds = {
+                    x: cellLeft + cellMargin,
+                    y: cellTop + cellMargin,
+                    width: cellWidth - 2 * cellMargin,
+                    height: cellHeight - 2 * cellMargin
+                };
+                
+                // Add to repository layout data
+                repositoryLayoutData.push({
+                    name: repo,
+                    nodes: nodes,
+                    rect: rectBounds
+                });
+                
+                // Position nodes within the cell
+                if (nodes.length === 1) {
+                    // Single node - center it
+                    nodes[0].x = cellCenterX;
+                    nodes[0].y = cellCenterY;
+                    nodes[0].fx = cellCenterX; // Fix position
+                    nodes[0].fy = cellCenterY;
+                } else {
+                    // Multiple nodes - arrange in circle with smaller radius
+                    const maxRadius = Math.min(cellWidth, cellHeight) / 2 - cellPadding - 20; // Extra margin
+                    const radius = Math.min(maxRadius, 15 + 3 * Math.sqrt(nodes.length)); // Smaller radius
+                    
+                    nodes.forEach((node, i) => {
+                        const angle = (i * 2 * Math.PI) / nodes.length - Math.PI / 2;
+                        node.x = cellCenterX + radius * Math.cos(angle);
+                        node.y = cellCenterY + radius * Math.sin(angle);
+                        node.fx = node.x; // Fix position
+                        node.fy = node.y;
+                    });
+                }
+            });
+            
+            // Update node positions immediately
+            d3.selectAll('.node')
+                .transition()
+                .duration(750)
+                .attr("transform", d => `translate(${d.x},${d.y})`)
+                .on('end', function() {
+                    // Ensure positions are maintained after transition
+                    d3.select(this).attr("transform", d => `translate(${d.x},${d.y})`);
+                });
+            
+            // Update link positions
+            d3.selectAll('.link')
+                .transition()
+                .duration(750)
+                .attr("x1", d => d.source.x)
+                .attr("y1", d => d.source.y)
+                .attr("x2", d => d.target.x)
+                .attr("y2", d => d.target.y);
+            
+            // Force update groups after positions are set
+            setTimeout(() => {
+                forceUpdateGroups();
+                document.getElementById('group-status').textContent = `Grid layout: ${cols}×${rows} (${repoCount} repositories)`;
+                
+                // Double-check positions are maintained
+                d3.selectAll('.node').attr("transform", d => `translate(${d.x},${d.y})`);
+                d3.selectAll('.link')
+                    .attr("x1", d => d.source.x)
+                    .attr("y1", d => d.source.y)
+                    .attr("x2", d => d.target.x)
+                    .attr("y2", d => d.target.y);
+                
+                // Restart simulation with very low alpha to keep it running but not disturb positions
+                if (simulation) {
+                    simulation.alpha(0.01).restart();
+                }
+                
+                // Zoom out to show all repositories if needed
+                const totalWidth = cols * cellWidth + 100;
+                const totalHeight = rows * cellHeight + 100;
+                if (totalWidth > svgWidth || totalHeight > svgHeight) {
+                    const scaleX = svgWidth / totalWidth;
+                    const scaleY = svgHeight / totalHeight;
+                    const scale = Math.min(scaleX, scaleY) * 0.9; // 90% to add some padding
+                    
+                    const transform = d3.zoomIdentity
+                        .translate(svgWidth / 2, svgHeight / 2)
+                        .scale(scale)
+                        .translate(-svgWidth / 2, -svgHeight / 2);
+                    
+                    svg.transition()
+                        .duration(750)
+                        .call(zoom.transform, transform);
+                }
+            }, 800);
+        }
+        
+        // Export debug functions for testing
         window.debugZoomState = debugZoomState;
+        window.debugRepositoryLayout = function() {
+            console.log('Repository Layout Data:', repositoryLayoutData);
+            console.log('Is Grid Layout:', isGridLayout);
+            console.log('Grid Parameters:', gridParameters);
+        };
+        
+        // Custom force to keep nodes within their repository bounds
+        function forceRepositoryBounds() {
+            let nodes;
+            
+            function force() {
+                nodes.forEach(node => {
+                    // Find the repository bounds for this node
+                    const repoBounds = repositoryLayoutData.find(r => r.name === node.nodeGroup);
+                    if (repoBounds) {
+                        const rect = repoBounds.rect;
+                        const padding = 15; // Keep nodes away from edges
+                        
+                        // Constrain x position
+                        if (node.x < rect.x + padding) {
+                            node.x = rect.x + padding;
+                            node.vx = Math.abs(node.vx) * 0.5; // Bounce effect
+                        } else if (node.x > rect.x + rect.width - padding) {
+                            node.x = rect.x + rect.width - padding;
+                            node.vx = -Math.abs(node.vx) * 0.5;
+                        }
+                        
+                        // Constrain y position
+                        if (node.y < rect.y + padding + 20) { // Extra space for label
+                            node.y = rect.y + padding + 20;
+                            node.vy = Math.abs(node.vy) * 0.5;
+                        } else if (node.y > rect.y + rect.height - padding) {
+                            node.y = rect.y + rect.height - padding;
+                            node.vy = -Math.abs(node.vy) * 0.5;
+                        }
+                    }
+                });
+            }
+            
+            force.initialize = function(_) {
+                nodes = _;
+            };
+            
+            return force;
+        }
+        
+        // Repository groups are always visible
+        
+        // Snap to grid settings
+        let snapToGrid = false;
+        const gridSize = 20;
+        
+        function snapToGridValue(value) {
+            if (!snapToGrid) return value;
+            return Math.round(value / gridSize) * gridSize;
+        }
+        
+        // Check if two rectangles overlap
+        function rectanglesOverlap(rect1, rect2) {
+            return !(rect1.x + rect1.width < rect2.x || 
+                     rect2.x + rect2.width < rect1.x || 
+                     rect1.y + rect1.height < rect2.y || 
+                     rect2.y + rect2.height < rect1.y);
+        }
+        
+        // Find a valid position for a rectangle that doesn't overlap with others
+        function findNonOverlappingPosition(movingRect, movingIndex, allRects, originalX, originalY) {
+            // Check if current position is valid
+            let overlaps = false;
+            for (let i = 0; i < allRects.length; i++) {
+                if (i !== movingIndex && rectanglesOverlap(movingRect, allRects[i].rect)) {
+                    overlaps = true;
+                    break;
+                }
+            }
+            
+            if (!overlaps) {
+                return { x: movingRect.x, y: movingRect.y };
+            }
+            
+            // If overlapping, try to find nearest valid position
+            const directions = [
+                { dx: 0, dy: -10 },  // up
+                { dx: 10, dy: 0 },   // right
+                { dx: 0, dy: 10 },   // down
+                { dx: -10, dy: 0 },  // left
+            ];
+            
+            let distance = 10;
+            const maxDistance = 500;
+            
+            while (distance < maxDistance) {
+                for (const dir of directions) {
+                    const testRect = {
+                        x: originalX + dir.dx * distance / 10,
+                        y: originalY + dir.dy * distance / 10,
+                        width: movingRect.width,
+                        height: movingRect.height
+                    };
+                    
+                    let valid = true;
+                    for (let i = 0; i < allRects.length; i++) {
+                        if (i !== movingIndex && rectanglesOverlap(testRect, allRects[i].rect)) {
+                            valid = false;
+                            break;
+                        }
+                    }
+                    
+                    if (valid) {
+                        return { x: testRect.x, y: testRect.y };
+                    }
+                }
+                distance += 10;
+            }
+            
+            // If no valid position found, return original
+            return { x: originalX, y: originalY };
+        }
+        
+        // Repository frame drag functions
+        function framesDragstarted(event, d) {
+            const container = d3.select(this);
+            container.raise();
+            container.select(".repo-group").classed("dragging", true);
+            
+            // Store starting positions
+            d.dragStartX = event.x;
+            d.dragStartY = event.y;
+            d.rectStartX = d.rect.x;
+            d.rectStartY = d.rect.y;
+            
+            // Store original positions of all nodes
+            d.nodes.forEach(node => {
+                node.dragStartX = node.x;
+                node.dragStartY = node.y;
+            });
+        }
+        
+        function framesDragged(event, d) {
+            const dx = event.x - d.dragStartX;
+            const dy = event.y - d.dragStartY;
+            
+            // Update rect position with optional snap-to-grid
+            const newX = snapToGridValue(d.rectStartX + dx);
+            const newY = snapToGridValue(d.rectStartY + dy);
+            
+            // Create test rectangle
+            const testRect = {
+                x: newX,
+                y: newY,
+                width: d.rect.width,
+                height: d.rect.height
+            };
+            
+            // Check if position would cause collision
+            let wouldCollide = false;
+            for (let i = 0; i < repositoryLayoutData.length; i++) {
+                if (repositoryLayoutData[i] !== d && rectanglesOverlap(testRect, repositoryLayoutData[i].rect)) {
+                    wouldCollide = true;
+                    break;
+                }
+            }
+            
+            // Update visual collision feedback
+            const container = d3.select(this);
+            container.select(".repo-group").classed("collision-warning", wouldCollide);
+            
+            // Check for collisions and get valid position
+            const validPos = findNonOverlappingPosition(
+                testRect, 
+                repositoryLayoutData.indexOf(d),
+                repositoryLayoutData,
+                newX,
+                newY
+            );
+            
+            // Update data
+            d.rect.x = validPos.x;
+            d.rect.y = validPos.y;
+            
+            // Update visual elements
+            container.select(".repo-group")
+                .attr("x", d.rect.x)
+                .attr("y", d.rect.y);
+            
+            // Update label position
+            const labelY = isGridLayout ? d.rect.y + 5 : d.rect.y - 30;
+            const labelTextY = isGridLayout ? d.rect.y + 23 : d.rect.y - 12;
+            
+            container.select(".repo-group-label")
+                .attr("x", d.rect.x + 10)
+                .attr("y", labelTextY);
+            
+            container.select("rect:nth-child(2)") // label background
+                .attr("x", d.rect.x + 5)
+                .attr("y", labelY);
+            
+            // Move all nodes within this repository
+            d.nodes.forEach(node => {
+                const relX = node.dragStartX - d.rectStartX;
+                const relY = node.dragStartY - d.rectStartY;
+                node.x = d.rect.x + relX;
+                node.y = d.rect.y + relY;
+                node.fx = node.x;
+                node.fy = node.y;
+            });
+            
+            // Update node positions immediately
+            d3.selectAll('.node')
+                .filter(n => d.nodes.includes(n))
+                .attr("transform", n => `translate(${n.x},${n.y})`);
+            
+            // Update links
+            simulation.alpha(0.1).restart();
+        }
+        
+        function framesDragended(event, d) {
+            const container = d3.select(this);
+            container.select(".repo-group")
+                .classed("dragging", false)
+                .classed("collision-warning", false);
+            
+            // Fix node positions in new location
+            d.nodes.forEach(node => {
+                node.fx = node.x;
+                node.fy = node.y;
+            });
+            
+            // Update the repositoryBounds force to use new positions
+            simulation.force("repositoryBounds").initialize(simulation.nodes());
+        }
+        
+        // Force update groups function
+        function forceUpdateGroups() {
+            if (!currentData || !groupsVisible) return;
+            
+            let repositoriesToDraw;
+            
+            if (isGridLayout && repositoryLayoutData.length > 0) {
+                // Use the pre-calculated repository layout data
+                repositoriesToDraw = repositoryLayoutData;
+                console.log('Using pre-calculated layout data for', repositoriesToDraw.length, 'repositories');
+            } else {
+                // Fallback to dynamic calculation for non-grid layouts
+                const projectsByRepo = {};
+                currentData.nodes.forEach(node => {
+                    if (!projectsByRepo[node.nodeGroup]) {
+                        projectsByRepo[node.nodeGroup] = [];
+                    }
+                    projectsByRepo[node.nodeGroup].push(node);
+                });
+                
+                // Create repository objects with dynamic bounds
+                repositoriesToDraw = Object.entries(projectsByRepo).map(([repo, projects]) => {
+                    // Skip if positions not initialized
+                    if (projects.some(n => n.x === undefined || n.y === undefined)) {
+                        return null;
+                    }
+                    
+                    // Calculate bounding box with appropriate padding
+                    const padding = projects.length > 1 ? 40 : 25;
+                    const xs = projects.map(n => n.x);
+                    const ys = projects.map(n => n.y);
+                    
+                    return {
+                        name: repo,
+                        nodes: projects,
+                        rect: {
+                            x: Math.min(...xs) - padding,
+                            y: Math.min(...ys) - padding,
+                            width: Math.max(...xs) - Math.min(...xs) + 2 * padding,
+                            height: Math.max(...ys) - Math.min(...ys) + 2 * padding
+                        }
+                    };
+                }).filter(r => r !== null);
+            }
+            
+            console.log('Force updating groups for repositories:', repositoriesToDraw.length);
+            
+            // Clear existing groups from both layers
+            d3.select(".groups-layer").selectAll("*").remove();
+            d3.select(".static-groups-layer").selectAll("*").remove();
+            
+            // Use static layer for grid layout, dynamic layer otherwise
+            const groupsLayer = isGridLayout ? d3.select(".static-groups-layer") : d3.select(".groups-layer");
+            
+            repositoriesToDraw.forEach(repoData => {
+                const { name: repo, nodes, rect } = repoData;
+                
+                // Skip if nodes don't have positions (for dynamic mode)
+                if (!isGridLayout && nodes.some(n => n.x === undefined || n.y === undefined)) {
+                    console.log('Skipping', repo, '- positions not initialized');
+                    return;
+                }
+                
+                // Create group container with data and drag behavior
+                const groupContainer = groupsLayer.append("g")
+                    .attr("class", "repo-group-container")
+                    .datum(repoData)
+                    .call(d3.drag()
+                        .on("start", framesDragstarted)
+                        .on("drag", framesDragged)
+                        .on("end", framesDragended));
+                
+                // Draw rectangle with enhanced styles
+                const rectElement = groupContainer.append("rect")
+                    .attr("class", "repo-group")
+                    .attr("x", rect.x)
+                    .attr("y", rect.y)
+                    .attr("width", rect.width)
+                    .attr("height", rect.height)
+                    .attr("rx", 20)
+                    .attr("ry", 20);
+                
+                if (nodes.length > 1) {
+                    // Multi-project repositories: dashed border
+                    rectElement.style("fill", "#e3f2fd")
+                        .style("fill-opacity", 0.9)
+                        .style("stroke", "#1976D2")
+                        .style("stroke-width", "4px")
+                        .style("stroke-dasharray", "15,5");
+                } else {
+                    // Single-project repositories: solid border
+                    rectElement.style("fill", "#f5f5f5")
+                        .style("fill-opacity", 0.7)
+                        .style("stroke", "#757575")
+                        .style("stroke-width", "2px")
+                        .style("stroke-dasharray", "none");
+                }
+                
+                // Add label with background
+                const labelY = isGridLayout ? rect.y + 5 : rect.y - 30; // Inside for grid, outside for normal
+                const labelTextY = isGridLayout ? rect.y + 23 : rect.y - 12;
+                
+                const labelBg = groupContainer.append("rect")
+                    .attr("x", rect.x + 5)
+                    .attr("y", labelY)
+                    .attr("rx", 5)
+                    .attr("ry", 5)
+                    .style("fill", "white")
+                    .style("stroke", "#1976D2")
+                    .style("stroke-width", "2px");
+                
+                const label = groupContainer.append("text")
+                    .attr("class", "repo-group-label")
+                    .attr("x", rect.x + 10)
+                    .attr("y", labelTextY)
+                    .text(repo)
+                    .style("font-size", isGridLayout ? "14px" : "18px") // Smaller font for grid
+                    .style("font-weight", "bold")
+                    .style("fill", "#0d47a1");
+                
+                // Adjust background to fit text
+                const bbox = label.node().getBBox();
+                labelBg
+                    .attr("width", bbox.width + 10)
+                    .attr("height", bbox.height + 6)
+                    .attr("x", bbox.x - 5)
+                    .attr("y", bbox.y - 3);
+            });
+            
+            // Update status
+            document.getElementById('group-status').textContent = 
+                `Showing ${repositoriesToDraw.length} repository groups in grid layout (${gridCols}×${gridRows})`;
+            
+            console.log('Repository groups updated');
+        }
         
     </script>
 </body>
