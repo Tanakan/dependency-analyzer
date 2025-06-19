@@ -604,12 +604,12 @@
             const repos = Object.entries(projectsByRepo).sort((a, b) => b[1].length - a[1].length);
             const repoCount = repos.length;
             
-            // Fixed grid parameters
-            gridCols = 6;
+            // Fixed grid parameters - increased cell size for better spacing
+            gridCols = 5; // Reduced columns to allow larger cells
             gridRows = Math.ceil(repoCount / gridCols);
-            const cellWidth = 250;
-            const cellHeight = 180;
-            const cellMargin = 20;
+            const cellWidth = 350; // Increased width
+            const cellHeight = 280; // Increased height
+            const cellMargin = 25;
             const minMargin = 50;
             
             // Calculate offsets
@@ -650,60 +650,103 @@
                 // Sort nodes by degree (highest first)
                 const sortedNodes = [...nodes].sort((a, b) => nodeDegrees.get(b.id) - nodeDegrees.get(a.id));
                 
-                // Set initial positions based on connectivity
+                // Set initial positions with no overlap using grid layout
+                const nodeRadius = 15; // Node visual radius
+                const labelHeight = 35; // Space needed for text below node
+                const minNodeSpacing = 80; // Increased spacing to account for node + label
+                const cellPadding = 50; // Increased padding from cell edges
+                
                 if (nodes.length === 1) {
                     nodes[0].x = cellCenterX;
                     nodes[0].y = cellCenterY;
-                } else if (nodes.length === 2) {
-                    // Two nodes - place horizontally
-                    nodes[0].x = cellCenterX - 30;
-                    nodes[0].y = cellCenterY;
-                    nodes[1].x = cellCenterX + 30;
-                    nodes[1].y = cellCenterY;
                 } else {
-                    // Multiple nodes - place high-degree nodes in center, others around
-                    const cellPadding = 30;
-                    const maxRadius = Math.min(cellWidth, cellHeight) / 2 - cellPadding - 25;
+                    // Calculate optimal grid dimensions for the nodes
+                    const availableWidth = cellWidth - 2 * cellPadding;
+                    const availableHeight = cellHeight - 2 * cellPadding;
                     
-                    if (nodes.length <= 4) {
-                        // Small groups - grid layout
-                        const positions = [
-                            [-30, -30], [30, -30],
-                            [-30, 30], [30, 30]
-                        ];
-                        sortedNodes.forEach((node, i) => {
-                            if (i < positions.length) {
-                                node.x = cellCenterX + positions[i][0];
-                                node.y = cellCenterY + positions[i][1];
-                            }
-                        });
+                    // Calculate grid dimensions based on node count
+                    let cols, rows;
+                    if (nodes.length <= 3) {
+                        // For 2-3 nodes, arrange horizontally
+                        cols = nodes.length;
+                        rows = 1;
+                    } else if (nodes.length <= 6) {
+                        // For 4-6 nodes, use 2 rows
+                        cols = Math.ceil(nodes.length / 2);
+                        rows = 2;
                     } else {
-                        // Larger groups - concentric circles
-                        const innerNodes = Math.ceil(nodes.length * 0.3); // 30% in inner circle
-                        const innerRadius = maxRadius * 0.4;
-                        const outerRadius = maxRadius * 0.8;
+                        // For more nodes, try to make a square-ish grid
+                        cols = Math.ceil(Math.sqrt(nodes.length));
+                        rows = Math.ceil(nodes.length / cols);
+                    }
+                    
+                    // Calculate actual spacing based on available space
+                    const horizSpacing = cols > 1 ? availableWidth / (cols - 1) : 0;
+                    const vertSpacing = rows > 1 ? availableHeight / (rows - 1) : 0;
+                    
+                    // If spacing is too tight, reduce grid size
+                    if (horizSpacing < minNodeSpacing && cols > 1) {
+                        cols = Math.max(1, Math.floor(availableWidth / minNodeSpacing) + 1);
+                        rows = Math.ceil(nodes.length / cols);
+                    }
+                    
+                    // Calculate grid dimensions
+                    const gridWidth = cols > 1 ? (cols - 1) * Math.max(minNodeSpacing, horizSpacing) : 0;
+                    const gridHeight = rows > 1 ? (rows - 1) * Math.max(minNodeSpacing, vertSpacing) : 0;
+                    
+                    // Center the grid
+                    const startX = cellCenterX - gridWidth / 2;
+                    const startY = cellCenterY - gridHeight / 2;
+                    
+                    // Position nodes in grid
+                    sortedNodes.forEach((node, i) => {
+                        const col = i % cols;
+                        const row = Math.floor(i / cols);
                         
-                        sortedNodes.forEach((node, i) => {
-                            if (i < innerNodes) {
-                                // High-degree nodes in inner circle
-                                if (i === 0 && nodeDegrees.get(node.id) > 3) {
-                                    // Highest degree node in center
-                                    node.x = cellCenterX;
-                                    node.y = cellCenterY;
-                                } else {
-                                    const angle = ((i - 1) * 2 * Math.PI) / (innerNodes - 1) - Math.PI / 2;
-                                    node.x = cellCenterX + innerRadius * Math.cos(angle);
-                                    node.y = cellCenterY + innerRadius * Math.sin(angle);
-                                }
-                            } else {
-                                // Lower-degree nodes in outer circle
-                                const outerIndex = i - innerNodes;
-                                const outerCount = nodes.length - innerNodes;
-                                const angle = (outerIndex * 2 * Math.PI) / outerCount - Math.PI / 2;
-                                node.x = cellCenterX + outerRadius * Math.cos(angle);
-                                node.y = cellCenterY + outerRadius * Math.sin(angle);
+                        node.x = startX + col * Math.max(minNodeSpacing, horizSpacing);
+                        node.y = startY + row * Math.max(minNodeSpacing, vertSpacing);
+                        
+                        // Ensure node stays within cell bounds with proper padding
+                        const minX = cellLeft + cellPadding;
+                        const maxX = cellLeft + cellWidth - cellPadding;
+                        const minY = cellTop + cellPadding;
+                        const maxY = cellTop + cellHeight - cellPadding;
+                        
+                        node.x = Math.max(minX, Math.min(maxX, node.x));
+                        node.y = Math.max(minY, Math.min(maxY, node.y));
+                    });
+                    
+                    // Fix any remaining overlaps by slightly adjusting positions
+                    for (let i = 0; i < sortedNodes.length; i++) {
+                        for (let j = i + 1; j < sortedNodes.length; j++) {
+                            const node1 = sortedNodes[i];
+                            const node2 = sortedNodes[j];
+                            const dx = node2.x - node1.x;
+                            const dy = node2.y - node1.y;
+                            const distance = Math.sqrt(dx * dx + dy * dy);
+                            
+                            if (distance < minNodeSpacing) {
+                                // Nodes are too close, push them apart
+                                const angle = Math.atan2(dy, dx);
+                                const pushDistance = (minNodeSpacing - distance) / 2 + 1;
+                                
+                                node1.x -= Math.cos(angle) * pushDistance;
+                                node1.y -= Math.sin(angle) * pushDistance;
+                                node2.x += Math.cos(angle) * pushDistance;
+                                node2.y += Math.sin(angle) * pushDistance;
+                                
+                                // Keep within bounds
+                                const minX = cellLeft + cellPadding;
+                                const maxX = cellLeft + cellWidth - cellPadding;
+                                const minY = cellTop + cellPadding;
+                                const maxY = cellTop + cellHeight - cellPadding;
+                                
+                                node1.x = Math.max(minX, Math.min(maxX, node1.x));
+                                node1.y = Math.max(minY, Math.min(maxY, node1.y));
+                                node2.x = Math.max(minX, Math.min(maxX, node2.x));
+                                node2.y = Math.max(minY, Math.min(maxY, node2.y));
                             }
-                        });
+                        }
                     }
                 }
             });
@@ -714,7 +757,7 @@
                     .distance(100)  // Much larger distance for very loose links
                     .strength(0.01)) // Extremely low strength to reduce tension
                 .force("charge", d3.forceManyBody().strength(-50)) // Much reduced repulsion
-                .force("collision", d3.forceCollide().radius(25))
+                .force("collision", d3.forceCollide().radius(40))
                 .force("repositoryBounds", forceRepositoryBounds()) // Custom force to keep nodes within their repository
                 .stop(); // Stop immediately - don't run simulation at all
             
@@ -776,8 +819,9 @@
             });
             
             node.append("text")
-                .attr("dx", d => d.packaging === 'war' ? 15 : 15)
-                .attr("dy", 4)
+                .attr("text-anchor", "middle")
+                .attr("dy", 30)  // Position further below the node to avoid overlap
+                .style("font-size", "11px")
                 .text(d => d.name);
             
             // Add packaging type label with background
@@ -1036,17 +1080,57 @@
         function dragged(event, d) {
             // Find the repository bounds for this node
             const repoBounds = repositoryLayoutData.find(r => r.name === d.nodeGroup);
+            const nodeRadius = 15;
+            const labelHeight = 30;
+            
+            let newX = event.x;
+            let newY = event.y;
+            
             if (repoBounds) {
                 const rect = repoBounds.rect;
-                const padding = 15;
+                const padding = nodeRadius + 5;
+                const bottomPadding = padding + labelHeight; // Extra space for label
                 
                 // Constrain dragged position to repository bounds
-                d.x = Math.max(rect.x + padding, Math.min(rect.x + rect.width - padding, event.x));
-                d.y = Math.max(rect.y + padding + 20, Math.min(rect.y + rect.height - padding, event.y));
-            } else {
-                d.x = event.x;
-                d.y = event.y;
+                newX = Math.max(rect.x + padding, Math.min(rect.x + rect.width - padding, newX));
+                newY = Math.max(rect.y + padding + 20, Math.min(rect.y + rect.height - bottomPadding, newY));
+                
+                // Check collision with other nodes in the same repository
+                const otherNodes = repoBounds.nodes.filter(n => n.id !== d.id);
+                let hasCollision = true;
+                let attempts = 0;
+                const maxAttempts = 10;
+                
+                while (hasCollision && attempts < maxAttempts) {
+                    hasCollision = false;
+                    
+                    for (const other of otherNodes) {
+                        const dx = newX - other.x;
+                        const dy = newY - other.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        const minDistance = 50; // Minimum distance to prevent label overlap
+                        
+                        if (distance < minDistance) {
+                            hasCollision = true;
+                            // Push the node away from the collision
+                            const angle = Math.atan2(dy, dx);
+                            const pushDistance = minDistance - distance + 1;
+                            newX += Math.cos(angle) * pushDistance;
+                            newY += Math.sin(angle) * pushDistance;
+                            
+                            // Re-constrain to bounds
+                            newX = Math.max(rect.x + padding, Math.min(rect.x + rect.width - padding, newX));
+                            newY = Math.max(rect.y + padding + 20, Math.min(rect.y + rect.height - padding, newY));
+                            break;
+                        }
+                    }
+                    attempts++;
+                }
             }
+            
+            // Update position
+            d.x = newX;
+            d.y = newY;
             
             // Update node position immediately
             d3.select(this).attr("transform", `translate(${d.x},${d.y})`);
