@@ -42,6 +42,20 @@
             <version>1.5.0</version>
         </dependency>
         
+        <!-- Common library dependency (version 2) -->
+        <dependency>
+            <groupId>com.example.shared</groupId>
+            <artifactId>common-library</artifactId>
+            <version>2.0.0</version>
+        </dependency>
+        
+        <!-- Config service dependency (duplicate artifact test) -->
+        <dependency>
+            <groupId>com.example.config</groupId>
+            <artifactId>config-service</artifactId>
+            <version>1.0.0</version>
+        </dependency>
+        
         <!-- Spring Boot -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

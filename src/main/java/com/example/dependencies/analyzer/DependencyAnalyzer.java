@@ -209,14 +209,22 @@ public class DependencyAnalyzer {
         ObjectMapper mapper = new ObjectMapper();
         ObjectNode root = mapper.createObjectNode();
         
-        // Create nodes array
+        // Create nodes array with unique IDs for duplicates
         ArrayNode nodes = mapper.createArrayNode();
-        Map<String, Integer> projectIndices = new HashMap<>();
-        int index = 0;
+        Map<Project, String> projectToUniqueId = new HashMap<>();
+        Map<String, Integer> duplicateCounters = new HashMap<>();
         
         for (Project project : allProjects) {
+            String baseId = project.getGroupId() + ":" + project.getArtifactId();
+            
+            // Create unique ID for duplicate projects
+            int count = duplicateCounters.getOrDefault(baseId, 0);
+            String uniqueId = count == 0 ? baseId : baseId + "#" + count;
+            duplicateCounters.put(baseId, count + 1);
+            projectToUniqueId.put(project, uniqueId);
+            
             ObjectNode node = mapper.createObjectNode();
-            node.put("id", project.getGroupId() + ":" + project.getArtifactId());
+            node.put("id", uniqueId);
             node.put("name", project.getArtifactId());
             node.put("version", project.getVersion());
             node.put("group", project.getGroupId());
@@ -228,25 +236,30 @@ public class DependencyAnalyzer {
             node.put("nodeGroup", repository);
             
             nodes.add(node);
-            projectIndices.put(project.getGroupId() + ":" + project.getArtifactId(), index++);
         }
         
-        // Create links array using node IDs instead of indices
+        // Create links array using unique IDs
         ArrayNode links = mapper.createArrayNode();
+        InHouseProjectDetector detector = new InHouseProjectDetector(allProjects);
+        
         for (Map.Entry<Project, List<Dependency>> entry : inHouseDependencies.entrySet()) {
             Project source = entry.getKey();
-            String sourceId = source.getGroupId() + ":" + source.getArtifactId();
+            String sourceId = projectToUniqueId.get(source);
             
             for (Dependency dep : entry.getValue()) {
-                String targetId = dep.getGroupId() + ":" + dep.getArtifactId();
+                // Find all projects that match this dependency (including duplicates)
+                List<Project> targetProjects = detector.findAllProjects(dep);
                 
-                // Check if target node exists
-                if (projectIndices.containsKey(targetId)) {
-                    ObjectNode link = mapper.createObjectNode();
-                    link.put("source", sourceId);
-                    link.put("target", targetId);
-                    link.put("value", 1);
-                    links.add(link);
+                // Create a link to each matching project
+                for (Project targetProject : targetProjects) {
+                    String targetId = projectToUniqueId.get(targetProject);
+                    if (targetId != null) {
+                        ObjectNode link = mapper.createObjectNode();
+                        link.put("source", sourceId);
+                        link.put("target", targetId);
+                        link.put("value", 1);
+                        links.add(link);
+                    }
                 }
             }
         }

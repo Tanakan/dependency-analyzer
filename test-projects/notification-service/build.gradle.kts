@@ -24,6 +24,12 @@ dependencies {
     // Internal dependency
     implementation("com.example:user-service:2.1.0")
     
+    // Common library dependency (version 2)
+    implementation("com.example.shared:common-library:2.0.0")
+    
+    // Config service dependency (duplicate artifact test)
+    implementation("com.example.config:config-service:1.0.0")
+    
     // External dependencies
     implementation("com.twilio.sdk:twilio:9.2.0")
     implementation("com.sendgrid:sendgrid-java:4.9.3")

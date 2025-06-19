@@ -43,16 +43,15 @@ public class IssuesAnalysisController {
             
             for (Map<String, Object> node : nodes) {
                 String id = (String) node.get("id");
-                String[] parts = id.split(":");
-                if (parts.length >= 2) {
-                    String groupId = parts[0];
-                    String artifactId = parts[1];
-                    String version = (String) node.get("version");
-                    String nodeGroup = (String) node.get("nodeGroup");
-                    
+                String groupId = (String) node.get("group");
+                String artifactId = (String) node.get("name");
+                String version = (String) node.get("version");
+                String nodeGroup = (String) node.get("nodeGroup");
+                
+                if (groupId != null && artifactId != null) {
                     Path projectPath = null;
                     if (nodeGroup != null && !"default".equals(nodeGroup)) {
-                        projectPath = Path.of("test-projects", nodeGroup, artifactId);
+                        projectPath = Path.of("test-projects", nodeGroup);
                     }
                     
                     Project project = new Project(groupId, artifactId, version, projectPath, null);
@@ -147,12 +146,37 @@ public class IssuesAnalysisController {
         }
         response.put("duplicateArtifactIds", duplicates);
         
+        // Duplicate GAVs (same GroupId, ArtifactId, and Version)
+        List<Map<String, Object>> duplicateGAVs = new ArrayList<>();
+        for (Map.Entry<String, List<Project>> entry : report.getDuplicateGAVs().entrySet()) {
+            Map<String, Object> dupInfo = new HashMap<>();
+            dupInfo.put("gav", entry.getKey());
+            
+            List<Map<String, String>> projects = entry.getValue().stream()
+                .map(p -> {
+                    Map<String, String> info = new HashMap<>();
+                    info.put("fullName", p.getFullName());
+                    info.put("groupId", p.getGroupId());
+                    info.put("artifactId", p.getArtifactId());
+                    info.put("version", p.getVersion());
+                    info.put("path", p.getProjectPath() != null ? p.getProjectPath().toString() : "");
+                    return info;
+                })
+                .collect(Collectors.toList());
+            
+            dupInfo.put("projects", projects);
+            dupInfo.put("count", projects.size());
+            duplicateGAVs.add(dupInfo);
+        }
+        response.put("duplicateGAVs", duplicateGAVs);
+        
         // Summary statistics
         Map<String, Integer> stats = new HashMap<>();
         stats.put("totalProjects", allProjects.size());
         stats.put("circularReferencesCount", circularRefs.size());
         stats.put("unreferencedProjectsCount", unreferencedList.size());
         stats.put("duplicateArtifactIdsCount", duplicates.size());
+        stats.put("duplicateGAVsCount", duplicateGAVs.size());
         response.put("statistics", stats);
         
         return ResponseEntity.ok(response);

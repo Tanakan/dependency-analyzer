@@ -134,6 +134,31 @@ public class ProjectIssuesAnalyzer {
     }
     
     /**
+     * 同じGAV（GroupId、ArtifactId、Version）を持つプロジェクトを検出
+     */
+    public Map<String, List<Project>> detectDuplicateGAVs() {
+        Map<String, List<Project>> gavGroups = new HashMap<>();
+        
+        // Group projects by GAV
+        for (Project project : allProjects) {
+            String gav = project.getGroupId() + ":" + project.getArtifactId() + ":" + project.getVersion();
+            gavGroups
+                .computeIfAbsent(gav, k -> new ArrayList<>())
+                .add(project);
+        }
+        
+        // Filter to keep only duplicates
+        return gavGroups.entrySet().stream()
+            .filter(entry -> entry.getValue().size() > 1)
+            .collect(Collectors.toMap(
+                Map.Entry::getKey,
+                Map.Entry::getValue,
+                (e1, e2) -> e1,
+                LinkedHashMap::new
+            ));
+    }
+    
+    /**
      * 全ての問題を分析
      */
     public IssuesReport analyzeAll() {
@@ -142,10 +167,12 @@ public class ProjectIssuesAnalyzer {
         report.setCircularReferences(detectCircularReferences());
         report.setUnreferencedProjects(detectUnreferencedProjects());
         report.setDuplicateArtifactIds(detectDuplicateArtifactIds());
+        report.setDuplicateGAVs(detectDuplicateGAVs());
         
         logger.info("Found {} circular references", report.getCircularReferences().size());
         logger.info("Found {} unreferenced projects", report.getUnreferencedProjects().size());
         logger.info("Found {} duplicate artifact IDs", report.getDuplicateArtifactIds().size());
+        logger.info("Found {} duplicate GAVs", report.getDuplicateGAVs().size());
         
         return report;
     }
@@ -154,6 +181,7 @@ public class ProjectIssuesAnalyzer {
         private List<List<String>> circularReferences = new ArrayList<>();
         private List<Project> unreferencedProjects = new ArrayList<>();
         private Map<String, List<Project>> duplicateArtifactIds = new LinkedHashMap<>();
+        private Map<String, List<Project>> duplicateGAVs = new LinkedHashMap<>();
         
         public List<List<String>> getCircularReferences() {
             return circularReferences;
@@ -177,6 +205,14 @@ public class ProjectIssuesAnalyzer {
         
         public void setDuplicateArtifactIds(Map<String, List<Project>> duplicateArtifactIds) {
             this.duplicateArtifactIds = duplicateArtifactIds;
+        }
+        
+        public Map<String, List<Project>> getDuplicateGAVs() {
+            return duplicateGAVs;
+        }
+        
+        public void setDuplicateGAVs(Map<String, List<Project>> duplicateGAVs) {
+            this.duplicateGAVs = duplicateGAVs;
         }
     }
 }

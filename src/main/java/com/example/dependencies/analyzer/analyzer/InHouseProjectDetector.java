@@ -12,19 +12,24 @@ public class InHouseProjectDetector {
     private static final Logger logger = LoggerFactory.getLogger(InHouseProjectDetector.class);
     
     private final Map<String, Project> projectMap;
+    private final Map<String, List<Project>> duplicateProjectsMap;
     private final List<Project> allProjects;
     private final Set<String> inHouseGroupIds;
 
     public InHouseProjectDetector(List<Project> allProjects) {
         this.allProjects = new ArrayList<>(allProjects);
         this.projectMap = new HashMap<>();
+        this.duplicateProjectsMap = new HashMap<>();
         this.inHouseGroupIds = new HashSet<>();
         
         // Build project map and collect in-house group IDs
-        // Note: If there are duplicates, only the last one is kept in projectMap
-        // but allProjects preserves all instances
+        // Store all duplicate projects separately
         for (Project project : allProjects) {
             String key = project.getGroupId() + ":" + project.getArtifactId();
+            
+            // Add to duplicate projects map
+            duplicateProjectsMap.computeIfAbsent(key, k -> new ArrayList<>()).add(project);
+            
             if (projectMap.containsKey(key)) {
                 logger.warn("Duplicate project found: {} in {} and {}",
                     key, projectMap.get(key).getProjectPath(), project.getProjectPath());
@@ -69,6 +74,11 @@ public class InHouseProjectDetector {
     public Project findProject(Dependency dependency) {
         String key = dependency.getGroupId() + ":" + dependency.getArtifactId();
         return projectMap.get(key);
+    }
+    
+    public List<Project> findAllProjects(Dependency dependency) {
+        String key = dependency.getGroupId() + ":" + dependency.getArtifactId();
+        return duplicateProjectsMap.getOrDefault(key, Collections.emptyList());
     }
 
     public Collection<Project> getAllProjects() {
