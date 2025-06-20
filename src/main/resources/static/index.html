@@ -638,16 +638,31 @@
                 return;
             }
             
-            const width = parentElement.clientWidth || 800;
-            const height = parentElement.clientHeight || 600;
+            // Ensure dimensions are valid numbers
+            let width = parentElement.clientWidth;
+            let height = parentElement.clientHeight;
             
-            console.log("SVG dimensions:", { width, height, parentElement });
-            
-            if (isNaN(width) || isNaN(height) || width <= 0 || height <= 0) {
-                console.error("Invalid SVG dimensions:", { width, height });
-                alert(`Error: Invalid graph dimensions - width: ${width}, height: ${height}`);
-                return;
+            // Fallback to safe defaults if dimensions are invalid
+            if (!width || isNaN(width) || width <= 0) {
+                console.warn("Invalid width detected, using default:", width);
+                width = 800;
             }
+            if (!height || isNaN(height) || height <= 0) {
+                console.warn("Invalid height detected, using default:", height);
+                height = 600;
+            }
+            
+            // Final validation
+            width = Math.max(100, Math.min(10000, width)); // Clamp to reasonable range
+            height = Math.max(100, Math.min(10000, height));
+            
+            console.log("SVG dimensions:", { 
+                width, 
+                height, 
+                parentElement,
+                originalWidth: parentElement.clientWidth,
+                originalHeight: parentElement.clientHeight
+            });
             
             // Validate data before processing
             console.log("Validating data before D3 processing...");
@@ -701,17 +716,23 @@
                 }
                 // Initialize positions if not present
                 if (node.x === undefined || node.x === null || isNaN(node.x)) {
-                    node.x = Math.random() * width;
-                    if (isNaN(node.x)) {
-                        console.error("NaN x after initialization:", { node, width });
-                        node.x = 400;
+                    // Ensure width is valid before using it
+                    const safeWidth = (typeof width === 'number' && !isNaN(width) && width > 0) ? width : 800;
+                    node.x = Math.random() * safeWidth;
+                    // Double check result
+                    if (isNaN(node.x) || node.x === undefined || node.x === null) {
+                        console.error("NaN x after initialization:", { node, width: safeWidth, random: Math.random() });
+                        node.x = safeWidth / 2; // Center as fallback
                     }
                 }
                 if (node.y === undefined || node.y === null || isNaN(node.y)) {
-                    node.y = Math.random() * height;
-                    if (isNaN(node.y)) {
-                        console.error("NaN y after initialization:", { node, height });
-                        node.y = 300;
+                    // Ensure height is valid before using it
+                    const safeHeight = (typeof height === 'number' && !isNaN(height) && height > 0) ? height : 600;
+                    node.y = Math.random() * safeHeight;
+                    // Double check result
+                    if (isNaN(node.y) || node.y === undefined || node.y === null) {
+                        console.error("NaN y after initialization:", { node, height: safeHeight, random: Math.random() });
+                        node.y = safeHeight / 2; // Center as fallback
                     }
                 }
                 return true;
@@ -2065,6 +2086,10 @@
         
         // Calculate repository positions to avoid overlaps
         function calculateRepositoryPositions(projectsByRepo, width, height) {
+            // Validate inputs
+            const safeWidth = (typeof width === 'number' && !isNaN(width) && width > 0) ? width : 800;
+            const safeHeight = (typeof height === 'number' && !isNaN(height) && height > 0) ? height : 600;
+            
             const repos = Object.entries(projectsByRepo);
             const repoCount = repos.length;
             const positions = {};
@@ -2074,8 +2099,8 @@
             
             // Use pack layout for better space utilization
             const margin = 150;
-            const effectiveWidth = width - 2 * margin;
-            const effectiveHeight = height - 2 * margin;
+            const effectiveWidth = Math.max(200, safeWidth - 2 * margin);
+            const effectiveHeight = Math.max(200, safeHeight - 2 * margin);
             
             // Calculate optimal grid dimensions
             const aspectRatio = effectiveWidth / effectiveHeight;
@@ -2104,9 +2129,19 @@
                 const jitterX = (Math.random() - 0.5) * 20;
                 const jitterY = (Math.random() - 0.5) * 20;
                 
+                const posX = margin + col * cellWidth + cellWidth / 2 + jitterX;
+                const posY = margin + row * cellHeight + cellHeight / 2 + jitterY;
+                
+                // Validate calculated positions
+                if (isNaN(posX) || isNaN(posY)) {
+                    console.error("NaN position calculated for repo:", {
+                        repo, row, col, cellWidth, cellHeight, margin, jitterX, jitterY
+                    });
+                }
+                
                 positions[repo] = {
-                    x: margin + col * cellWidth + cellWidth / 2 + jitterX,
-                    y: margin + row * cellHeight + cellHeight / 2 + jitterY,
+                    x: isNaN(posX) ? safeWidth / 2 : posX,
+                    y: isNaN(posY) ? safeHeight / 2 : posY,
                     projects: projects.length,
                     radius: projects.length > 1 ? 80 : 50 // Estimated radius for collision detection
                 };
