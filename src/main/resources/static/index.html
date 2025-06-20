@@ -526,6 +526,7 @@
         
         function displayGraph(data) {
             try {
+                console.log("Starting displayGraph with data:", data);
                 document.getElementById('graphContainer').style.display = 'flex';
                 
                 // Clear previous graph
@@ -538,8 +539,24 @@
             
             // Set up SVG
             svg = d3.select("#graph");
-            const width = svg.node().parentElement.clientWidth;
-            const height = svg.node().parentElement.clientHeight;
+            const parentElement = svg.node().parentElement;
+            
+            if (!parentElement) {
+                console.error("Parent element not found for SVG");
+                alert("Error: Could not find parent element for graph");
+                return;
+            }
+            
+            const width = parentElement.clientWidth || 800;
+            const height = parentElement.clientHeight || 600;
+            
+            console.log("SVG dimensions:", { width, height, parentElement });
+            
+            if (isNaN(width) || isNaN(height) || width <= 0 || height <= 0) {
+                console.error("Invalid SVG dimensions:", { width, height });
+                alert(`Error: Invalid graph dimensions - width: ${width}, height: ${height}`);
+                return;
+            }
             
             svg.attr("width", width).attr("height", height);
             
@@ -583,8 +600,20 @@
                     return false;
                 }
                 // Initialize positions if not present
-                if (node.x === undefined) node.x = 0;
-                if (node.y === undefined) node.y = 0;
+                if (node.x === undefined || node.x === null || isNaN(node.x)) {
+                    node.x = Math.random() * width;
+                    if (isNaN(node.x)) {
+                        console.error("NaN x after initialization:", { node, width });
+                        node.x = 400;
+                    }
+                }
+                if (node.y === undefined || node.y === null || isNaN(node.y)) {
+                    node.y = Math.random() * height;
+                    if (isNaN(node.y)) {
+                        console.error("NaN y after initialization:", { node, height });
+                        node.y = 300;
+                    }
+                }
                 return true;
             });
             
@@ -1136,15 +1165,44 @@
             simulation.on("tick", () => {
                 // Update links with smart routing
                 link.attr("d", d => {
-                    // Handle both object references and string IDs
-                    const sourceNode = typeof d.source === 'object' ? d.source : data.nodes.find(n => n.id === d.source);
-                    const targetNode = typeof d.target === 'object' ? d.target : data.nodes.find(n => n.id === d.target);
-                    
-                    if (!sourceNode || !targetNode) return "";
-                    
-                    const dx = targetNode.x - sourceNode.x;
-                    const dy = targetNode.y - sourceNode.y;
-                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    try {
+                        // Handle both object references and string IDs
+                        const sourceNode = typeof d.source === 'object' ? d.source : data.nodes.find(n => n.id === d.source);
+                        const targetNode = typeof d.target === 'object' ? d.target : data.nodes.find(n => n.id === d.target);
+                        
+                        if (!sourceNode || !targetNode) {
+                            console.error("Missing node in link:", {
+                                link: d,
+                                sourceType: typeof d.source,
+                                targetType: typeof d.target,
+                                sourceId: d.source,
+                                targetId: d.target,
+                                nodesCount: data.nodes.length,
+                                nodeIds: data.nodes.map(n => n.id)
+                            });
+                            return "";
+                        }
+                        
+                        // Check for NaN coordinates
+                        if (isNaN(sourceNode.x) || isNaN(sourceNode.y) || 
+                            isNaN(targetNode.x) || isNaN(targetNode.y)) {
+                            console.error("NaN coordinates detected in tick:", {
+                                source: { id: sourceNode.id, x: sourceNode.x, y: sourceNode.y },
+                                target: { id: targetNode.id, x: targetNode.x, y: targetNode.y },
+                                sourceNodeFull: sourceNode,
+                                targetNodeFull: targetNode
+                            });
+                            return "";
+                        }
+                        
+                        const dx = targetNode.x - sourceNode.x;
+                        const dy = targetNode.y - sourceNode.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        
+                        if (isNaN(distance)) {
+                            console.error("NaN distance calculated:", { dx, dy, distance });
+                            return "";
+                        }
                     
                     // Different curves for internal vs external links
                     if (sourceNode.nodeGroup === targetNode.nodeGroup) {
@@ -1160,9 +1218,19 @@
                         const midY = (sourceNode.y + targetNode.y) / 2 - offset * dx / distance;
                         return `M${sourceNode.x},${sourceNode.y} Q${midX},${midY + dr / 2} ${targetNode.x},${targetNode.y}`;
                     }
+                    } catch (error) {
+                        console.error("Error in link rendering:", error, { link: d });
+                        return "";
+                    }
                 });
                 
-                node.attr("transform", d => `translate(${d.x},${d.y})`);
+                node.attr("transform", d => {
+                    if (isNaN(d.x) || isNaN(d.y)) {
+                        console.error("NaN coordinates in node transform:", { id: d.id, x: d.x, y: d.y });
+                        return `translate(0,0)`;
+                    }
+                    return `translate(${d.x},${d.y})`;
+                });
                 
                 // Do NOT update repository groups here - they should remain fixed
             });
@@ -1274,8 +1342,23 @@
             });
             
             } catch (error) {
-                console.error('Error in displayGraph:', error);
-                showError('Failed to display graph: ' + error.message);
+                console.error('Error in displayGraph:', error, error.stack);
+                
+                // Check for specific NaN error
+                if (error.message && error.message.includes("Cannot set properties of undefined")) {
+                    console.error('NaN error details:', {
+                        error: error,
+                        stack: error.stack,
+                        currentData: currentData,
+                        nodeCount: data.nodes ? data.nodes.length : 0,
+                        linkCount: data.links ? data.links.length : 0,
+                        sampleNodes: data.nodes ? data.nodes.slice(0, 5) : [],
+                        sampleLinks: data.links ? data.links.slice(0, 5) : []
+                    });
+                    showError('Failed to display graph: ' + error.message + '\n\nThis is likely due to invalid node coordinates. Check the console for details.');
+                } else {
+                    showError('Failed to display graph: ' + error.message);
+                }
             }
         }
         

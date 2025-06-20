@@ -213,7 +213,10 @@ public class DependencyAnalyzerCLI {
             String uniqueId = duplicateHandler.getUniqueId(project);
             
             // Debug logging for duplicate projects
-            if (project.getGroupId().equals("com.example.config") && project.getArtifactId().equals("config-service")) {
+            if (project.getGroupId() != null && 
+                project.getGroupId().equals("com.example.config") && 
+                project.getArtifactId() != null &&
+                project.getArtifactId().equals("config-service")) {
                 logger.info("Creating node for config-service: uniqueId={}, repository={}", 
                     uniqueId, project.getRepository());
             }
