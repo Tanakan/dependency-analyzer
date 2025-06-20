@@ -7,6 +7,7 @@ import com.example.dependencies.analyzer.model.Project;
 import com.example.dependencies.analyzer.model.ProjectType;
 import com.example.dependencies.analyzer.parser.GradleBuildParser;
 import com.example.dependencies.analyzer.parser.MavenPomParser;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -223,11 +224,11 @@ public class DependencyAnalyzerCLI {
             
             ObjectNode node = mapper.createObjectNode();
             node.put("id", uniqueId);
-            node.put("name", project.getArtifactId());
-            node.put("version", project.getVersion());
+            node.put("name", project.getArtifactId() != null ? project.getArtifactId() : "");
+            node.put("version", project.getVersion() != null ? project.getVersion() : "");
             node.put("group", project.getGroupId());
             node.put("type", project.getType() != null ? project.getType().getDisplayName() : "Unknown");
-            node.put("packaging", project.getPackaging());
+            node.put("packaging", project.getPackaging() != null ? project.getPackaging() : "jar");
             
             // Determine node group for coloring
             String nodeGroup = "default";
@@ -289,7 +290,101 @@ public class DependencyAnalyzerCLI {
         stats.put("totalDependencies", links.size());
         result.put("stats", stats);
         
+        // Validate the generated data before returning
+        validateGraphData(nodes, links);
+        
         return result;
+    }
+    
+    private void validateGraphData(ArrayNode nodes, ArrayNode links) {
+        logger.info("Validating graph data...");
+        
+        // Track validation issues
+        List<String> errors = new ArrayList<>();
+        List<String> warnings = new ArrayList<>();
+        
+        // Create node ID set for link validation
+        Set<String> nodeIds = new HashSet<>();
+        Map<String, Integer> nodeIndexMap = new HashMap<>();
+        
+        // Validate nodes
+        for (int i = 0; i < nodes.size(); i++) {
+            JsonNode node = nodes.get(i);
+            String nodeId = node.get("id") != null ? node.get("id").asText() : null;
+            
+            // Check required fields
+            if (nodeId == null || nodeId.isEmpty()) {
+                errors.add(String.format("Node at index %d has no id", i));
+            } else {
+                if (nodeIds.contains(nodeId)) {
+                    warnings.add(String.format("Duplicate node id: %s", nodeId));
+                }
+                nodeIds.add(nodeId);
+                nodeIndexMap.put(nodeId, i);
+            }
+            
+            if (node.get("name") == null || node.get("name").asText().isEmpty()) {
+                errors.add(String.format("Node %s has no name", nodeId != null ? nodeId : "at index " + i));
+            }
+            
+            if (node.get("version") == null || node.get("version").asText().isEmpty()) {
+                warnings.add(String.format("Node %s has no version", nodeId != null ? nodeId : "at index " + i));
+            }
+            
+            if (node.get("group") != null && node.get("group").isNull()) {
+                warnings.add(String.format("Node %s has null group", nodeId != null ? nodeId : "at index " + i));
+            }
+            
+            if (node.get("nodeGroup") == null || node.get("nodeGroup").asText().isEmpty()) {
+                errors.add(String.format("Node %s has no nodeGroup", nodeId != null ? nodeId : "at index " + i));
+            }
+        }
+        
+        // Validate links
+        for (int i = 0; i < links.size(); i++) {
+            JsonNode link = links.get(i);
+            String source = link.get("source") != null ? link.get("source").asText() : null;
+            String target = link.get("target") != null ? link.get("target").asText() : null;
+            
+            if (source == null || source.isEmpty()) {
+                errors.add(String.format("Link at index %d has no source", i));
+            } else if (!nodeIds.contains(source)) {
+                errors.add(String.format("Link at index %d has invalid source: %s", i, source));
+            }
+            
+            if (target == null || target.isEmpty()) {
+                errors.add(String.format("Link at index %d has no target", i));
+            } else if (!nodeIds.contains(target)) {
+                errors.add(String.format("Link at index %d has invalid target: %s", i, target));
+            }
+            
+            // Check for self-referencing links
+            if (source != null && source.equals(target)) {
+                warnings.add(String.format("Link at index %d is self-referencing: %s -> %s", i, source, target));
+            }
+        }
+        
+        // Log validation results
+        logger.info("Validation complete: {} nodes, {} links", nodes.size(), links.size());
+        
+        if (!warnings.isEmpty()) {
+            logger.warn("Validation warnings ({}):", warnings.size());
+            for (String warning : warnings) {
+                logger.warn("  - {}", warning);
+            }
+        }
+        
+        if (!errors.isEmpty()) {
+            logger.error("Validation errors ({}):", errors.size());
+            for (String error : errors) {
+                logger.error("  - {}", error);
+            }
+            throw new IllegalStateException(
+                String.format("Graph data validation failed with %d errors. See logs for details.", errors.size())
+            );
+        }
+        
+        logger.info("Graph data validation passed successfully");
     }
     
     private void saveAnalysisResult(Map<String, Object> analysisResult) throws IOException {
