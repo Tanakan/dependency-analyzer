@@ -524,6 +524,97 @@
             errorDiv.style.display = 'block';
         }
         
+        function validateGraphData(data) {
+            const errors = [];
+            const warnings = [];
+            
+            // Check basic structure
+            if (!data) {
+                errors.push("Data is null or undefined");
+                return { valid: false, errors, warnings };
+            }
+            
+            if (!data.nodes || !Array.isArray(data.nodes)) {
+                errors.push("nodes is missing or not an array");
+                return { valid: false, errors, warnings };
+            }
+            
+            if (!data.links || !Array.isArray(data.links)) {
+                errors.push("links is missing or not an array");
+                return { valid: false, errors, warnings };
+            }
+            
+            // Create node ID lookup
+            const nodeIdToIndex = new Map();
+            const nodeIds = new Set();
+            
+            // Validate nodes
+            data.nodes.forEach((node, index) => {
+                if (!node.id) {
+                    errors.push(`Node at index ${index} has no id`);
+                } else {
+                    if (nodeIds.has(node.id)) {
+                        warnings.push(`Duplicate node id: ${node.id}`);
+                    }
+                    nodeIds.add(node.id);
+                    nodeIdToIndex.set(node.id, index);
+                }
+                
+                if (node.group === null) {
+                    warnings.push(`Node ${node.id || index} has null group`);
+                }
+                
+                // Check for pre-existing NaN values
+                if (typeof node.x === 'number' && isNaN(node.x)) {
+                    errors.push(`Node ${node.id || index} has NaN x coordinate`);
+                }
+                if (typeof node.y === 'number' && isNaN(node.y)) {
+                    errors.push(`Node ${node.id || index} has NaN y coordinate`);
+                }
+            });
+            
+            // Validate links
+            data.links.forEach((link, index) => {
+                if (link.source === undefined || link.source === null) {
+                    errors.push(`Link at index ${index} has no source`);
+                } else if (typeof link.source === 'string') {
+                    if (!nodeIds.has(link.source)) {
+                        errors.push(`Link ${index}: source "${link.source}" not found in nodes`);
+                    }
+                } else if (typeof link.source === 'number') {
+                    if (link.source < 0 || link.source >= data.nodes.length) {
+                        errors.push(`Link ${index}: source index ${link.source} out of range`);
+                    }
+                }
+                
+                if (link.target === undefined || link.target === null) {
+                    errors.push(`Link at index ${index} has no target`);
+                } else if (typeof link.target === 'string') {
+                    if (!nodeIds.has(link.target)) {
+                        errors.push(`Link ${index}: target "${link.target}" not found in nodes`);
+                    }
+                } else if (typeof link.target === 'number') {
+                    if (link.target < 0 || link.target >= data.nodes.length) {
+                        errors.push(`Link ${index}: target index ${link.target} out of range`);
+                    }
+                }
+            });
+            
+            console.log("Data validation complete:", {
+                valid: errors.length === 0,
+                errorCount: errors.length,
+                warningCount: warnings.length,
+                errors,
+                warnings
+            });
+            
+            return {
+                valid: errors.length === 0,
+                errors,
+                warnings
+            };
+        }
+        
         function displayGraph(data) {
             try {
                 console.log("Starting displayGraph with data:", data);
@@ -555,6 +646,15 @@
             if (isNaN(width) || isNaN(height) || width <= 0 || height <= 0) {
                 console.error("Invalid SVG dimensions:", { width, height });
                 alert(`Error: Invalid graph dimensions - width: ${width}, height: ${height}`);
+                return;
+            }
+            
+            // Validate data before processing
+            console.log("Validating data before D3 processing...");
+            const dataValidation = validateGraphData(data);
+            if (!dataValidation.valid) {
+                console.error("Data validation failed:", dataValidation);
+                alert(`Data validation failed: ${dataValidation.errors.join(', ')}`);
                 return;
             }
             
@@ -1008,15 +1108,32 @@
                 value: link.value
             }));
             
-            // Create force simulation but don't start it
-            simulation = d3.forceSimulation(data.nodes)
-                .force("link", d3.forceLink(simulationLinks).id(d => d.id)
-                    .distance(100)  // Much larger distance for very loose links
-                    .strength(0.01)) // Extremely low strength to reduce tension
-                .force("charge", d3.forceManyBody().strength(-50)) // Much reduced repulsion
-                .force("collision", d3.forceCollide().radius(40))
-                .force("repositoryBounds", forceRepositoryBounds()) // Custom force to keep nodes within their repository
-                .stop(); // Stop immediately - don't run simulation at all
+            console.log("Creating D3 force simulation...");
+            console.log("Nodes sample:", data.nodes.slice(0, 3));
+            console.log("Links sample:", simulationLinks.slice(0, 3));
+            
+            try {
+                // Create force simulation but don't start it
+                simulation = d3.forceSimulation(data.nodes)
+                    .force("link", d3.forceLink(simulationLinks).id(d => {
+                        if (!d || !d.id) {
+                            console.error("Node without id in forceLink:", d);
+                            return null;
+                        }
+                        return d.id;
+                    })
+                        .distance(100)  // Much larger distance for very loose links
+                        .strength(0.01)) // Extremely low strength to reduce tension
+                    .force("charge", d3.forceManyBody().strength(-50)) // Much reduced repulsion
+                    .force("collision", d3.forceCollide().radius(40))
+                    .force("repositoryBounds", forceRepositoryBounds()) // Custom force to keep nodes within their repository
+                    .stop(); // Stop immediately - don't run simulation at all
+                    
+                console.log("Force simulation created successfully");
+            } catch (simError) {
+                console.error("Error creating force simulation:", simError);
+                throw new Error(`Failed to create D3 force simulation: ${simError.message}`);
+            }
             
             // Group links by source and target repositories for bundling
             const linkGroups = {};
@@ -1163,23 +1280,24 @@
             
             // Update positions on tick
             simulation.on("tick", () => {
-                // Update links with smart routing
-                link.attr("d", d => {
-                    try {
-                        // Handle both object references and string IDs
-                        const sourceNode = typeof d.source === 'object' ? d.source : data.nodes.find(n => n.id === d.source);
-                        const targetNode = typeof d.target === 'object' ? d.target : data.nodes.find(n => n.id === d.target);
-                        
-                        if (!sourceNode || !targetNode) {
-                            console.error("Missing node in link:", {
-                                link: d,
-                                sourceType: typeof d.source,
-                                targetType: typeof d.target,
-                                sourceId: d.source,
-                                targetId: d.target,
-                                nodesCount: data.nodes.length,
-                                nodeIds: data.nodes.map(n => n.id)
-                            });
+                try {
+                    // Update links with smart routing
+                    link.attr("d", d => {
+                        try {
+                            // Handle both object references and string IDs
+                            const sourceNode = typeof d.source === 'object' ? d.source : data.nodes.find(n => n.id === d.source);
+                            const targetNode = typeof d.target === 'object' ? d.target : data.nodes.find(n => n.id === d.target);
+                            
+                            if (!sourceNode || !targetNode) {
+                                console.error("Missing node in link:", {
+                                    link: d,
+                                    sourceType: typeof d.source,
+                                    targetType: typeof d.target,
+                                    sourceId: d.source,
+                                    targetId: d.target,
+                                    nodesCount: data.nodes.length,
+                                    nodeIds: data.nodes.map(n => n.id).slice(0, 10)
+                                });
                             return "";
                         }
                         
@@ -1233,6 +1351,9 @@
                 });
                 
                 // Do NOT update repository groups here - they should remain fixed
+                } catch (tickError) {
+                    console.error("Error in tick handler:", tickError);
+                }
             });
             
             
