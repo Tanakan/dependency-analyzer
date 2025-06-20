@@ -972,9 +972,16 @@
                 }
             });
             
+            // Clone links to prevent D3 from mutating the original data
+            const simulationLinks = data.links.map(link => ({
+                source: link.source,
+                target: link.target,
+                value: link.value
+            }));
+            
             // Create force simulation but don't start it
             simulation = d3.forceSimulation(data.nodes)
-                .force("link", d3.forceLink(data.links).id(d => d.id)
+                .force("link", d3.forceLink(simulationLinks).id(d => d.id)
                     .distance(100)  // Much larger distance for very loose links
                     .strength(0.01)) // Extremely low strength to reduce tension
                 .force("charge", d3.forceManyBody().strength(-50)) // Much reduced repulsion
@@ -1129,8 +1136,9 @@
             simulation.on("tick", () => {
                 // Update links with smart routing
                 link.attr("d", d => {
-                    const sourceNode = d.source;
-                    const targetNode = d.target;
+                    // Handle both object references and string IDs
+                    const sourceNode = typeof d.source === 'object' ? d.source : data.nodes.find(n => n.id === d.source);
+                    const targetNode = typeof d.target === 'object' ? d.target : data.nodes.find(n => n.id === d.target);
                     
                     if (!sourceNode || !targetNode) return "";
                     

@@ -1,6 +1,7 @@
 package com.example.dependencies.analyzer;
 
 import com.example.dependencies.analyzer.analyzer.InHouseProjectDetector;
+import com.example.dependencies.analyzer.analyzer.DuplicateProjectHandler;
 import com.example.dependencies.analyzer.model.Dependency;
 import com.example.dependencies.analyzer.model.Project;
 import com.example.dependencies.analyzer.model.ProjectType;
@@ -184,19 +185,15 @@ public class DependencyAnalyzer {
         ObjectMapper mapper = new ObjectMapper();
         ObjectNode root = mapper.createObjectNode();
         
+        // Use DuplicateProjectHandler to manage unique IDs
+        DuplicateProjectHandler duplicateHandler = new DuplicateProjectHandler();
+        duplicateHandler.processDuplicates(allProjects);
+        
         // Create nodes array with unique IDs for duplicates
         ArrayNode nodes = mapper.createArrayNode();
-        Map<Project, String> projectToUniqueId = new HashMap<>();
-        Map<String, Integer> duplicateCounters = new HashMap<>();
         
         for (Project project : allProjects) {
-            String baseId = project.getGroupId() + ":" + project.getArtifactId();
-            
-            // Create unique ID for duplicate projects
-            int count = duplicateCounters.getOrDefault(baseId, 0);
-            String uniqueId = count == 0 ? baseId : baseId + "#" + count;
-            duplicateCounters.put(baseId, count + 1);
-            projectToUniqueId.put(project, uniqueId);
+            String uniqueId = duplicateHandler.getUniqueId(project);
             
             ObjectNode node = mapper.createObjectNode();
             node.put("id", uniqueId);
@@ -215,26 +212,22 @@ public class DependencyAnalyzer {
         
         // Create links array using unique IDs
         ArrayNode links = mapper.createArrayNode();
-        InHouseProjectDetector detector = new InHouseProjectDetector(allProjects);
         
         for (Map.Entry<Project, List<Dependency>> entry : inHouseDependencies.entrySet()) {
             Project source = entry.getKey();
-            String sourceId = projectToUniqueId.get(source);
+            String sourceId = duplicateHandler.getUniqueId(source);
             
             for (Dependency dep : entry.getValue()) {
-                // Find all projects that match this dependency (including duplicates)
-                List<Project> targetProjects = detector.findAllProjects(dep);
+                // Use DuplicateProjectHandler to resolve dependency to correct project
+                String targetId = duplicateHandler.resolveDependencyId(dep, source);
                 
-                // Create a link to each matching project
-                for (Project targetProject : targetProjects) {
-                    String targetId = projectToUniqueId.get(targetProject);
-                    if (targetId != null) {
-                        ObjectNode link = mapper.createObjectNode();
-                        link.put("source", sourceId);
-                        link.put("target", targetId);
-                        link.put("value", 1);
-                        links.add(link);
-                    }
+                // Check if the target project exists
+                if (duplicateHandler.getProjectByUniqueId(targetId) != null) {
+                    ObjectNode link = mapper.createObjectNode();
+                    link.put("source", sourceId);
+                    link.put("target", targetId);
+                    link.put("value", 1);
+                    links.add(link);
                 }
             }
         }

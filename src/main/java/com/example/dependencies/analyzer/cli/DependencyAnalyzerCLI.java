@@ -1,6 +1,7 @@
 package com.example.dependencies.analyzer.cli;
 
 import com.example.dependencies.analyzer.analyzer.InHouseProjectDetector;
+import com.example.dependencies.analyzer.analyzer.DuplicateProjectHandler;
 import com.example.dependencies.analyzer.model.Dependency;
 import com.example.dependencies.analyzer.model.Project;
 import com.example.dependencies.analyzer.model.ProjectType;
@@ -203,20 +204,22 @@ public class DependencyAnalyzerCLI {
         ArrayNode nodes = mapper.createArrayNode();
         ArrayNode links = mapper.createArrayNode();
         
-        // Create a map to track node indices
-        Map<String, Integer> nodeIndices = new HashMap<>();
+        // Use DuplicateProjectHandler to manage unique IDs
+        DuplicateProjectHandler duplicateHandler = new DuplicateProjectHandler();
+        duplicateHandler.processDuplicates(allProjects);
         
-        // Note: We don't add dependent projects that are not in our scan
-        // This ensures we only show projects that actually exist in the repositories
-        
-        // Create nodes
-        for (int i = 0; i < allProjects.size(); i++) {
-            Project project = allProjects.get(i);
-            String key = project.getGroupId() + ":" + project.getArtifactId();
-            nodeIndices.put(key, i);
+        // Create nodes with unique IDs
+        for (Project project : allProjects) {
+            String uniqueId = duplicateHandler.getUniqueId(project);
+            
+            // Debug logging for duplicate projects
+            if (project.getGroupId().equals("com.example.config") && project.getArtifactId().equals("config-service")) {
+                logger.info("Creating node for config-service: uniqueId={}, repository={}", 
+                    uniqueId, project.getRepository());
+            }
             
             ObjectNode node = mapper.createObjectNode();
-            node.put("id", key);
+            node.put("id", uniqueId);
             node.put("name", project.getArtifactId());
             node.put("version", project.getVersion());
             node.put("group", project.getGroupId());
@@ -241,19 +244,36 @@ public class DependencyAnalyzerCLI {
         }
         
         // Create links
+        boolean linkToAllDuplicates = false; // Set to true to create links to all duplicate projects
+        
         for (Map.Entry<Project, List<Dependency>> entry : dependencyMap.entrySet()) {
             Project source = entry.getKey();
-            String sourceKey = source.getGroupId() + ":" + source.getArtifactId();
+            String sourceId = duplicateHandler.getUniqueId(source);
             
             for (Dependency dep : entry.getValue()) {
-                String targetKey = dep.getGroupId() + ":" + dep.getArtifactId();
-                
-                // Use node IDs instead of indices for D3.js
-                ObjectNode link = mapper.createObjectNode();
-                link.put("source", sourceKey);
-                link.put("target", targetKey);
-                link.put("value", 1);
-                links.add(link);
+                if (linkToAllDuplicates) {
+                    // Create links to all matching projects
+                    List<String> targetIds = duplicateHandler.resolveAllDependencyIds(dep);
+                    for (String targetId : targetIds) {
+                        ObjectNode link = mapper.createObjectNode();
+                        link.put("source", sourceId);
+                        link.put("target", targetId);
+                        link.put("value", 1);
+                        links.add(link);
+                    }
+                } else {
+                    // Use DuplicateProjectHandler to resolve dependency to correct project
+                    String targetId = duplicateHandler.resolveDependencyId(dep, source);
+                    
+                    // Check if the target project exists
+                    if (duplicateHandler.getProjectByUniqueId(targetId) != null) {
+                        ObjectNode link = mapper.createObjectNode();
+                        link.put("source", sourceId);
+                        link.put("target", targetId);
+                        link.put("value", 1);
+                        links.add(link);
+                    }
+                }
             }
         }
         

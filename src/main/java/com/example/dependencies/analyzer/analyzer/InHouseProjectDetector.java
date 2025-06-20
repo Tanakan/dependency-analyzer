@@ -55,7 +55,8 @@ public class InHouseProjectDetector {
     }
 
     public Map<Project, List<Dependency>> buildInHouseDependencyMap() {
-        Map<Project, List<Dependency>> dependencyMap = new LinkedHashMap<>();
+        // Use IdentityHashMap to handle duplicate projects with same groupId:artifactId:version
+        Map<Project, List<Dependency>> dependencyMap = new IdentityHashMap<>();
         
         // Use allProjects to preserve duplicates
         for (Project project : allProjects) {
