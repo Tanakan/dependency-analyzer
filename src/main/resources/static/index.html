@@ -576,6 +576,28 @@
             const groupsLayer = g.append("g").attr("class", "groups-layer");
             g.node().insertBefore(groupsLayer.node(), g.node().firstChild);
             
+            // Validate nodes - ensure all have required properties
+            data.nodes = data.nodes.filter(node => {
+                if (!node.id || !node.nodeGroup) {
+                    console.warn(`Removing invalid node:`, node);
+                    return false;
+                }
+                // Initialize positions if not present
+                if (node.x === undefined) node.x = 0;
+                if (node.y === undefined) node.y = 0;
+                return true;
+            });
+            
+            // Validate links - remove any links with invalid source/target
+            const nodeIds = new Set(data.nodes.map(n => n.id));
+            data.links = data.links.filter(link => {
+                if (!nodeIds.has(link.source) || !nodeIds.has(link.target)) {
+                    console.warn(`Removing invalid link: source=${link.source}, target=${link.target}`);
+                    return false;
+                }
+                return true;
+            });
+            
             // Find repositories with multiple projects
             const projectsByRepo = {};
             data.nodes.forEach(node => {
@@ -813,8 +835,8 @@
                 
                 // Sort nodes by connection score (highest first) - highly connected nodes go to center
                 const sortedNodes = [...nodes].sort((a, b) => {
-                    const scoreA = connectionScores.get(a.id).total;
-                    const scoreB = connectionScores.get(b.id).total;
+                    const scoreA = connectionScores.get(a.id)?.total || 0;
+                    const scoreB = connectionScores.get(b.id)?.total || 0;
                     return scoreB - scoreA;
                 });
                 
@@ -825,14 +847,20 @@
                 const cellPadding = 50; // Increased padding from cell edges
                 
                 if (nodes.length === 1) {
-                    nodes[0].x = cellCenterX;
-                    nodes[0].y = cellCenterY;
+                    if (nodes[0]) {
+                        nodes[0].x = cellCenterX;
+                        nodes[0].y = cellCenterY;
+                    }
                 } else if (nodes.length === 2) {
                     // Two nodes: place horizontally
-                    sortedNodes[0].x = cellCenterX - minNodeSpacing / 2;
-                    sortedNodes[0].y = cellCenterY;
-                    sortedNodes[1].x = cellCenterX + minNodeSpacing / 2;
-                    sortedNodes[1].y = cellCenterY;
+                    if (sortedNodes[0]) {
+                        sortedNodes[0].x = cellCenterX - minNodeSpacing / 2;
+                        sortedNodes[0].y = cellCenterY;
+                    }
+                    if (sortedNodes[1]) {
+                        sortedNodes[1].x = cellCenterX + minNodeSpacing / 2;
+                        sortedNodes[1].y = cellCenterY;
+                    }
                 } else {
                     // Multiple nodes: use radial layout with most connected node in center
                     const availableWidth = cellWidth - 2 * cellPadding;
@@ -842,16 +870,22 @@
                         // For small groups, place highest connected node in center
                         // and others in a circle around it
                         const centerNode = sortedNodes[0];
-                        centerNode.x = cellCenterX;
-                        centerNode.y = cellCenterY;
+                        if (centerNode) {
+                            centerNode.x = cellCenterX;
+                            centerNode.y = cellCenterY;
+                        }
                         
-                        const radius = Math.min(availableWidth, availableHeight) * 0.35;
-                        const angleStep = (2 * Math.PI) / (nodes.length - 1);
-                        
-                        for (let i = 1; i < sortedNodes.length; i++) {
-                            const angle = (i - 1) * angleStep - Math.PI / 2; // Start from top
-                            sortedNodes[i].x = cellCenterX + radius * Math.cos(angle);
-                            sortedNodes[i].y = cellCenterY + radius * Math.sin(angle);
+                        if (nodes.length > 1) {
+                            const radius = Math.min(availableWidth, availableHeight) * 0.35;
+                            const angleStep = (2 * Math.PI) / (nodes.length - 1);
+                            
+                            for (let i = 1; i < sortedNodes.length; i++) {
+                                const angle = (i - 1) * angleStep - Math.PI / 2; // Start from top
+                                if (sortedNodes[i]) {
+                                    sortedNodes[i].x = cellCenterX + radius * Math.cos(angle);
+                                    sortedNodes[i].y = cellCenterY + radius * Math.sin(angle);
+                                }
+                            }
                         }
                     } else {
                         // For larger groups, use concentric circles
@@ -860,8 +894,10 @@
                         let ring = 0;
                         
                         // Place most connected node at center
-                        sortedNodes[0].x = cellCenterX;
-                        sortedNodes[0].y = cellCenterY;
+                        if (sortedNodes[0]) {
+                            sortedNodes[0].x = cellCenterX;
+                            sortedNodes[0].y = cellCenterY;
+                        }
                         nodeIndex = 1;
                         
                         // Place remaining nodes in concentric rings
@@ -872,13 +908,20 @@
                                 ring * 6, // Each ring can hold 6 more nodes than the previous
                                 sortedNodes.length - nodeIndex
                             );
-                            const angleStep = (2 * Math.PI) / nodesInRing;
                             
-                            for (let i = 0; i < nodesInRing && nodeIndex < sortedNodes.length; i++) {
-                                const angle = i * angleStep - Math.PI / 2;
-                                sortedNodes[nodeIndex].x = cellCenterX + ringRadius * Math.cos(angle);
-                                sortedNodes[nodeIndex].y = cellCenterY + ringRadius * Math.sin(angle);
-                                nodeIndex++;
+                            if (nodesInRing > 0) {
+                                const angleStep = (2 * Math.PI) / nodesInRing;
+                                
+                                for (let i = 0; i < nodesInRing && nodeIndex < sortedNodes.length; i++) {
+                                    const angle = i * angleStep - Math.PI / 2;
+                                    if (sortedNodes[nodeIndex]) {
+                                        sortedNodes[nodeIndex].x = cellCenterX + ringRadius * Math.cos(angle);
+                                        sortedNodes[nodeIndex].y = cellCenterY + ringRadius * Math.sin(angle);
+                                    }
+                                    nodeIndex++;
+                                }
+                            } else {
+                                break; // Safety check - should not happen but prevents infinite loop
                             }
                         }
                     }
@@ -942,15 +985,21 @@
             // Group links by source and target repositories for bundling
             const linkGroups = {};
             data.links.forEach(link => {
-                const sourceRepo = link.source.nodeGroup || data.nodes.find(n => n.id === link.source)?.nodeGroup;
-                const targetRepo = link.target.nodeGroup || data.nodes.find(n => n.id === link.target)?.nodeGroup;
+                // At this point, link.source and link.target are still string IDs
+                const sourceNode = data.nodes.find(n => n.id === link.source);
+                const targetNode = data.nodes.find(n => n.id === link.target);
                 
-                if (sourceRepo && targetRepo) {
-                    const key = sourceRepo === targetRepo ? `internal-${sourceRepo}` : `${sourceRepo}->${targetRepo}`;
-                    if (!linkGroups[key]) {
-                        linkGroups[key] = [];
+                if (sourceNode && targetNode) {
+                    const sourceRepo = sourceNode.nodeGroup;
+                    const targetRepo = targetNode.nodeGroup;
+                    
+                    if (sourceRepo && targetRepo) {
+                        const key = sourceRepo === targetRepo ? `internal-${sourceRepo}` : `${sourceRepo}->${targetRepo}`;
+                        if (!linkGroups[key]) {
+                            linkGroups[key] = [];
+                        }
+                        linkGroups[key].push(link);
                     }
-                    linkGroups[key].push(link);
                 }
             });
             
