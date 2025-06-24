@@ -996,11 +996,9 @@
                 const minNodeSpacing = 80; // Increased spacing to account for node + label
                 const cellPadding = 50; // Increased padding from cell edges
                 
-                if (nodes.length === 1) {
-                    if (nodes[0]) {
-                        nodes[0].x = cellCenterX;
-                        nodes[0].y = cellCenterY;
-                    }
+                if (nodes.length === 1 && nodes[0]) {
+                    nodes[0].x = cellCenterX;
+                    nodes[0].y = cellCenterY;
                 } else if (nodes.length === 2) {
                     // Two nodes: place horizontally
                     if (sortedNodes[0]) {
@@ -1027,7 +1025,7 @@
                         
                         if (nodes.length > 1) {
                             const radius = Math.min(availableWidth, availableHeight) * 0.35;
-                            const angleStep = (2 * Math.PI) / (nodes.length - 1);
+                            const angleStep = nodes.length > 1 ? (2 * Math.PI) / (nodes.length - 1) : 0;
                             
                             for (let i = 1; i < sortedNodes.length; i++) {
                                 const angle = (i - 1) * angleStep - Math.PI / 2; // Start from top
@@ -1060,7 +1058,7 @@
                             );
                             
                             if (nodesInRing > 0) {
-                                const angleStep = (2 * Math.PI) / nodesInRing;
+                                const angleStep = nodesInRing > 0 ? (2 * Math.PI) / nodesInRing : 0;
                                 
                                 for (let i = 0; i < nodesInRing && nodeIndex < sortedNodes.length; i++) {
                                     const angle = i * angleStep - Math.PI / 2;
@@ -1204,8 +1202,8 @@
                         const dr = distance * 0.8;
                         // Add slight offset based on link direction to separate bidirectional links
                         const offset = sourceNode.id < targetNode.id ? -10 : 10;
-                        const midX = (sourceNode.x + targetNode.x) / 2 + offset * dy / distance;
-                        const midY = (sourceNode.y + targetNode.y) / 2 - offset * dx / distance;
+                        const midX = distance > 0 ? (sourceNode.x + targetNode.x) / 2 + offset * dy / distance : (sourceNode.x + targetNode.x) / 2;
+                        const midY = distance > 0 ? (sourceNode.y + targetNode.y) / 2 - offset * dx / distance : (sourceNode.y + targetNode.y) / 2;
                         return `M${sourceNode.x},${sourceNode.y} Q${midX},${midY + dr / 2} ${targetNode.x},${targetNode.y}`;
                     }
                 });
@@ -1216,7 +1214,13 @@
                 .data(data.nodes)
                 .enter().append("g")
                 .attr("class", "node")
-                .attr("transform", d => `translate(${d.x},${d.y})`) // Position immediately
+                .attr("transform", d => {
+                if (!d || isNaN(d.x) || isNaN(d.y)) {
+                    console.error("Invalid node data in transform:", d);
+                    return `translate(0,0)`;
+                }
+                return `translate(${d.x},${d.y})`;
+            }) // Position immediately
                 .on("click", function(event, d) {
                     event.stopPropagation();
                     highlightConnectedNodes(d, data);
@@ -1353,8 +1357,8 @@
                         const dr = distance * 0.8;
                         // Add slight offset based on link direction to separate bidirectional links
                         const offset = sourceNode.id < targetNode.id ? -10 : 10;
-                        const midX = (sourceNode.x + targetNode.x) / 2 + offset * dy / distance;
-                        const midY = (sourceNode.y + targetNode.y) / 2 - offset * dx / distance;
+                        const midX = distance > 0 ? (sourceNode.x + targetNode.x) / 2 + offset * dy / distance : (sourceNode.x + targetNode.x) / 2;
+                        const midY = distance > 0 ? (sourceNode.y + targetNode.y) / 2 - offset * dx / distance : (sourceNode.y + targetNode.y) / 2;
                         return `M${sourceNode.x},${sourceNode.y} Q${midX},${midY + dr / 2} ${targetNode.x},${targetNode.y}`;
                     }
                     } catch (error) {
@@ -1364,8 +1368,8 @@
                 });
                 
                 node.attr("transform", d => {
-                    if (isNaN(d.x) || isNaN(d.y)) {
-                        console.error("NaN coordinates in node transform:", { id: d.id, x: d.x, y: d.y });
+                    if (!d || isNaN(d.x) || isNaN(d.y)) {
+                        console.error("Invalid node data in transform:", d);
                         return `translate(0,0)`;
                     }
                     return `translate(${d.x},${d.y})`;
@@ -2373,7 +2377,7 @@
                 });
                 
                 // Position nodes within the cell
-                if (nodes.length === 1) {
+                if (nodes.length === 1 && nodes[0]) {
                     // Single node - center it
                     nodes[0].x = cellCenterX;
                     nodes[0].y = cellCenterY;
@@ -2385,7 +2389,7 @@
                     const radius = Math.min(maxRadius, 15 + 3 * Math.sqrt(nodes.length)); // Smaller radius
                     
                     nodes.forEach((node, i) => {
-                        const angle = (i * 2 * Math.PI) / nodes.length - Math.PI / 2;
+                        const angle = nodes.length > 0 ? (i * 2 * Math.PI) / nodes.length - Math.PI / 2 : 0;
                         node.x = cellCenterX + radius * Math.cos(angle);
                         node.y = cellCenterY + radius * Math.sin(angle);
                         node.fx = node.x; // Fix position
@@ -2398,10 +2402,21 @@
             d3.selectAll('.node')
                 .transition()
                 .duration(750)
-                .attr("transform", d => `translate(${d.x},${d.y})`)
-                .on('end', function() {
+                .attr("transform", d => {
+                    if (!d || isNaN(d.x) || isNaN(d.y)) {
+                        console.error("Invalid node data in transform:", d);
+                        return `translate(0,0)`;
+                    }
+                    return `translate(${d.x},${d.y})`;
+                })
+                .on('end', function(event, d) {
                     // Ensure positions are maintained after transition
-                    d3.select(this).attr("transform", d => `translate(${d.x},${d.y})`);
+                    if (!d || isNaN(d.x) || isNaN(d.y)) {
+                        console.error("Invalid node data in transition end:", d);
+                        d3.select(this).attr("transform", `translate(0,0)`);
+                    } else {
+                        d3.select(this).attr("transform", `translate(${d.x},${d.y})`);
+                    }
                 });
             
             // Update link positions
@@ -2679,8 +2694,8 @@
                         const dr = distance * 0.8;
                         // Add slight offset based on link direction to separate bidirectional links
                         const offset = sourceNode.id < targetNode.id ? -10 : 10;
-                        const midX = (sourceNode.x + targetNode.x) / 2 + offset * dy / distance;
-                        const midY = (sourceNode.y + targetNode.y) / 2 - offset * dx / distance;
+                        const midX = distance > 0 ? (sourceNode.x + targetNode.x) / 2 + offset * dy / distance : (sourceNode.x + targetNode.x) / 2;
+                        const midY = distance > 0 ? (sourceNode.y + targetNode.y) / 2 - offset * dx / distance : (sourceNode.y + targetNode.y) / 2;
                         return `M${sourceNode.x},${sourceNode.y} Q${midX},${midY + dr / 2} ${targetNode.x},${targetNode.y}`;
                     }
                 });
