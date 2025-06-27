@@ -16,6 +16,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.LoggerContext;
+import ch.qos.logback.classic.joran.JoranConfigurator;
+import ch.qos.logback.core.joran.spi.JoranException;
+import ch.qos.logback.core.ConsoleAppender;
+import ch.qos.logback.classic.encoder.PatternLayoutEncoder;
+import ch.qos.logback.classic.spi.ILoggingEvent;
 
 import java.io.File;
 import java.io.IOException;
@@ -53,8 +58,13 @@ public class DependencyAnalyzerCLI {
             logLevel = "ERROR"; // Default to ERROR for CLI mode
         }
         
-        // Set the log level
+        // Get the logger context
         LoggerContext loggerContext = (LoggerContext) LoggerFactory.getILoggerFactory();
+        
+        // Reset the context to clear any existing configuration
+        loggerContext.reset();
+        
+        // Now configure programmatically
         ch.qos.logback.classic.Logger rootLogger = loggerContext.getLogger(Logger.ROOT_LOGGER_NAME);
         
         try {
@@ -66,10 +76,30 @@ public class DependencyAnalyzerCLI {
             if (packageLogLevel == null) {
                 packageLogLevel = System.getenv("LOGGING_LEVEL_COM_EXAMPLE_DEPENDENCIES_ANALYZER");
             }
-            if (packageLogLevel != null) {
-                ch.qos.logback.classic.Logger packageLogger = loggerContext.getLogger("com.example.dependencies.analyzer");
-                packageLogger.setLevel(Level.valueOf(packageLogLevel.toUpperCase()));
+            if (packageLogLevel == null) {
+                // Default package log level to same as root
+                packageLogLevel = logLevel;
             }
+            ch.qos.logback.classic.Logger packageLogger = loggerContext.getLogger("com.example.dependencies.analyzer");
+            packageLogger.setLevel(Level.valueOf(packageLogLevel.toUpperCase()));
+            
+            // Add a console appender for ERROR output
+            ch.qos.logback.core.ConsoleAppender<ch.qos.logback.classic.spi.ILoggingEvent> consoleAppender = 
+                new ch.qos.logback.core.ConsoleAppender<>();
+            consoleAppender.setContext(loggerContext);
+            consoleAppender.setTarget("System.err");
+            
+            ch.qos.logback.classic.encoder.PatternLayoutEncoder encoder = 
+                new ch.qos.logback.classic.encoder.PatternLayoutEncoder();
+            encoder.setContext(loggerContext);
+            encoder.setPattern("%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n");
+            encoder.start();
+            
+            consoleAppender.setEncoder(encoder);
+            consoleAppender.start();
+            
+            rootLogger.addAppender(consoleAppender);
+            
         } catch (IllegalArgumentException e) {
             System.err.println("Invalid log level: " + logLevel + ". Using ERROR level.");
             rootLogger.setLevel(Level.ERROR);
