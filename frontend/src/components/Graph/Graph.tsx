@@ -37,12 +37,18 @@ const CustomNode: React.FC<NodeProps> = ({ data }) => {
         boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
       }}
     >
-      <Handle type="target" position={Position.Top} style={{ visibility: 'hidden' }} />
+      <Handle type="target" position={Position.Top} id="target-top" style={{ visibility: 'hidden' }} />
+      <Handle type="target" position={Position.Right} id="target-right" style={{ visibility: 'hidden' }} />
+      <Handle type="target" position={Position.Bottom} id="target-bottom" style={{ visibility: 'hidden' }} />
+      <Handle type="target" position={Position.Left} id="target-left" style={{ visibility: 'hidden' }} />
       <div>{data.label}</div>
       <div style={{ fontSize: '10px', color: '#666', marginTop: '2px' }}>
         {data.version}
       </div>
-      <Handle type="source" position={Position.Bottom} style={{ visibility: 'hidden' }} />
+      <Handle type="source" position={Position.Top} id="source-top" style={{ visibility: 'hidden' }} />
+      <Handle type="source" position={Position.Right} id="source-right" style={{ visibility: 'hidden' }} />
+      <Handle type="source" position={Position.Bottom} id="source-bottom" style={{ visibility: 'hidden' }} />
+      <Handle type="source" position={Position.Left} id="source-left" style={{ visibility: 'hidden' }} />
     </div>
   );
 };
@@ -199,12 +205,47 @@ export const Graph: React.FC<GraphProps> = ({ data, selectedNode, selectedReposi
       const sourceId = typeof link.source === 'string' ? link.source : (link.source as any).id;
       const targetId = typeof link.target === 'string' ? link.target : (link.target as any).id;
 
+      // Get node positions to determine best connection points
+      const sourcePos = nodePositions.get(sourceId);
+      const targetPos = nodePositions.get(targetId);
+      
+      let sourceHandle = 'source-bottom';
+      let targetHandle = 'target-top';
+      
+      if (sourcePos && targetPos) {
+        const dx = targetPos.x - sourcePos.x;
+        const dy = targetPos.y - sourcePos.y;
+        
+        // Determine best connection based on relative positions
+        if (Math.abs(dx) > Math.abs(dy)) {
+          // Horizontal connection is better
+          if (dx > 0) {
+            sourceHandle = 'source-right';
+            targetHandle = 'target-left';
+          } else {
+            sourceHandle = 'source-left';
+            targetHandle = 'target-right';
+          }
+        } else {
+          // Vertical connection is better
+          if (dy > 0) {
+            sourceHandle = 'source-bottom';
+            targetHandle = 'target-top';
+          } else {
+            sourceHandle = 'source-top';
+            targetHandle = 'target-bottom';
+          }
+        }
+      }
+
       return {
         id: `e${index}`,
         source: sourceId,
         target: targetId,
+        sourceHandle,
+        targetHandle,
         type: 'default',
-        animated: selectedNode === sourceId || selectedNode === targetId,
+        animated: false, // No animation
         style: {
           stroke: selectedNode === sourceId || selectedNode === targetId ? 
             '#4f46e5' : '#374151',
@@ -310,7 +351,7 @@ export const Graph: React.FC<GraphProps> = ({ data, selectedNode, selectedReposi
         
         return {
           ...edge,
-          animated: isHighlighted,
+          animated: false, // Remove animation
           style: {
             ...edge.style,
             stroke: isHighlighted ? '#4f46e5' : '#374151',

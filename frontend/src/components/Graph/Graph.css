@@ -150,16 +150,7 @@
   filter: drop-shadow(0 3px 6px rgba(79, 70, 229, 0.4));
 }
 
-.react-flow__edge.animated {
-  stroke-dasharray: 8 4;
-  animation: dashdraw 0.5s linear infinite;
-}
-
-@keyframes dashdraw {
-  to {
-    stroke-dashoffset: -12;
-  }
-}
+/* No animation for edges */
 
 /* Make arrow markers more prominent */
 .react-flow__arrowhead {
@@ -184,8 +175,7 @@
   stroke-width: 3px !important;
 }
 
-.react-flow__edge.selected .react-flow__edge-path,
-.react-flow__edge.animated .react-flow__edge-path {
+.react-flow__edge.selected .react-flow__edge-path {
   stroke: #4f46e5 !important;
   stroke-width: 4px !important;
 }
