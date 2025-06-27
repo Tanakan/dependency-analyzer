@@ -149,7 +149,9 @@ public class DependencyGraphVisualizer {
         
         for (Map.Entry<Project, List<Dependency>> entry : dependencyMap.entrySet()) {
             for (Dependency dep : entry.getValue()) {
-                if (dep.getGroupId().equals(project.getGroupId()) && 
+                if (dep.getGroupId() != null && project.getGroupId() != null && 
+                    dep.getGroupId().equals(project.getGroupId()) && 
+                    dep.getArtifactId() != null && project.getArtifactId() != null &&
                     dep.getArtifactId().equals(project.getArtifactId())) {
                     dependents.add(entry.getKey());
                     break;
