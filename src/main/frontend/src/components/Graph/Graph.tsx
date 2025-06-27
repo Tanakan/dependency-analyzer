@@ -95,11 +95,13 @@ export const Graph: React.FC<GraphProps> = ({ data, selectedNode, selectedReposi
       .attr('stroke-dasharray', d => d[1].nodes.length > 1 ? '10,5' : 'none');
 
     repoFrames.append('text')
-      .attr('x', d => d[1].x + 10)
-      .attr('y', d => d[1].y + 20)
+      .attr('x', d => d[1].x + 15)
+      .attr('y', d => d[1].y + 25)
       .text(d => d[0])
-      .style('font-weight', 'bold')
-      .style('font-size', '14px');
+      .style('font-weight', '600')
+      .style('font-size', '14px')
+      .style('fill', '#667eea')
+      .style('text-shadow', '0 1px 2px rgba(255,255,255,0.8)');
 
     // Create links
     const link = g.append('g')
@@ -125,33 +127,65 @@ export const Graph: React.FC<GraphProps> = ({ data, selectedNode, selectedReposi
         .on('drag', dragged)
         .on('end', dragended));
 
-    // Add circles/rectangles for nodes
+    // Add circles/rectangles for nodes with enhanced styling
     node.each(function(d) {
       const nodeElement = d3.select(this);
       
       if (d.packaging === 'war') {
+        // Add gradient for WAR packages
+        const gradientId = `gradient-war-${d.id.replace(/[^a-zA-Z0-9]/g, '')}`;
+        defs.append('linearGradient')
+          .attr('id', gradientId)
+          .selectAll('stop')
+          .data([
+            { offset: '0%', color: '#ff6b6b' },
+            { offset: '100%', color: '#ff8e8e' }
+          ])
+          .enter()
+          .append('stop')
+          .attr('offset', d => d.offset)
+          .attr('stop-color', d => d.color);
+          
         nodeElement.append('rect')
-          .attr('x', -10)
-          .attr('y', -10)
-          .attr('width', 20)
-          .attr('height', 20)
-          .attr('fill', color(d.nodeGroup))
-          .attr('stroke', '#ff6b6b')
+          .attr('x', -12)
+          .attr('y', -12)
+          .attr('width', 24)
+          .attr('height', 24)
+          .attr('rx', 4)
+          .attr('fill', `url(#${gradientId})`)
+          .attr('stroke', '#ff4757')
           .attr('stroke-width', 2);
       } else {
+        // Add gradient for JAR packages
+        const gradientId = `gradient-jar-${d.id.replace(/[^a-zA-Z0-9]/g, '')}`;
+        defs.append('radialGradient')
+          .attr('id', gradientId)
+          .selectAll('stop')
+          .data([
+            { offset: '0%', color: color(d.nodeGroup) },
+            { offset: '100%', color: d3.color(color(d.nodeGroup))?.darker(0.3)?.toString() || color(d.nodeGroup) }
+          ])
+          .enter()
+          .append('stop')
+          .attr('offset', d => d.offset)
+          .attr('stop-color', d => d.color);
+          
         nodeElement.append('circle')
-          .attr('r', 10)
-          .attr('fill', color(d.nodeGroup))
-          .attr('stroke', '#4ecdc4')
+          .attr('r', 12)
+          .attr('fill', `url(#${gradientId})`)
+          .attr('stroke', '#667eea')
           .attr('stroke-width', 2);
       }
     });
 
-    // Add labels
+    // Add labels with enhanced styling
     node.append('text')
-      .attr('dy', 25)
+      .attr('dy', 28)
       .attr('text-anchor', 'middle')
-      .style('font-size', '10px')
+      .style('font-size', '11px')
+      .style('font-weight', '500')
+      .style('fill', '#333')
+      .style('text-shadow', '0 1px 2px rgba(255,255,255,0.8)')
       .text(d => d.name);
 
     // Position nodes within repositories

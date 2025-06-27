@@ -1,8 +1,11 @@
 .graph-container {
   flex: 1;
   position: relative;
-  background-color: #fafafa;
+  background: radial-gradient(circle at 20% 50%, rgba(102, 126, 234, 0.05) 0%, transparent 50%),
+              radial-gradient(circle at 80% 20%, rgba(118, 75, 162, 0.05) 0%, transparent 50%),
+              #fafafa;
   overflow: hidden;
+  border-radius: 0 16px 16px 0;
 }
 
 .graph-container svg {
@@ -12,33 +15,92 @@
 
 .node {
   cursor: move;
-  transition: opacity 0.2s;
+  transition: all 0.3s ease;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+}
+
+.node:hover {
+  filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));
+  transform: scale(1.1);
 }
 
 .node.highlighted {
   opacity: 1 !important;
+  filter: drop-shadow(0 4px 12px rgba(102, 126, 234, 0.4));
+  transform: scale(1.15);
 }
 
 .node.dimmed {
-  opacity: 0.3;
+  opacity: 0.2;
+  filter: grayscale(0.5);
 }
 
 .node.repo-highlighted {
   opacity: 1 !important;
+  filter: drop-shadow(0 3px 8px rgba(102, 126, 234, 0.3));
 }
 
 .node.repo-dimmed {
-  opacity: 0.2;
+  opacity: 0.15;
+  filter: grayscale(0.7);
 }
 
 .link {
-  stroke: #999;
-  stroke-opacity: 0.6;
+  stroke: #667eea;
+  stroke-opacity: 0.7;
   stroke-width: 2px;
   fill: none;
+  filter: drop-shadow(0 1px 2px rgba(102, 126, 234, 0.2));
+  transition: all 0.3s ease;
+}
+
+.link:hover {
+  stroke: #764ba2;
+  stroke-opacity: 0.9;
+  stroke-width: 3px;
+  filter: drop-shadow(0 2px 4px rgba(118, 75, 162, 0.3));
 }
 
 .repo-frames rect {
-  fill-opacity: 0.1;
+  fill: rgba(102, 126, 234, 0.03);
+  fill-opacity: 1;
+  stroke: #667eea;
+  stroke-opacity: 0.3;
+  stroke-width: 2;
+  filter: drop-shadow(0 2px 8px rgba(102, 126, 234, 0.1));
+  transition: all 0.3s ease;
+}
+
+.repo-frames rect:hover {
+  fill: rgba(102, 126, 234, 0.08);
   stroke-opacity: 0.5;
+  filter: drop-shadow(0 4px 12px rgba(102, 126, 234, 0.2));
+}
+
+.repo-frames text {
+  font-weight: 600;
+  fill: #667eea;
+  font-size: 14px;
+  text-shadow: 0 1px 2px rgba(255,255,255,0.8);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .graph-container {
+    border-radius: 0 0 16px 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .graph-container {
+    border-radius: 0 0 12px 12px;
+  }
+  
+  .node text {
+    font-size: 10px !important;
+  }
+  
+  .repo-frames text {
+    font-size: 12px !important;
+  }
 }

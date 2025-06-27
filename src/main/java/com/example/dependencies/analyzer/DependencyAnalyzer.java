@@ -2,6 +2,7 @@ package com.example.dependencies.analyzer;
 
 import com.example.dependencies.analyzer.analyzer.InHouseProjectDetector;
 import com.example.dependencies.analyzer.analyzer.DuplicateProjectHandler;
+import com.example.dependencies.analyzer.analyzer.ProjectIssuesAnalyzer;
 import com.example.dependencies.analyzer.model.Dependency;
 import com.example.dependencies.analyzer.model.Project;
 import com.example.dependencies.analyzer.model.ProjectType;
@@ -239,6 +240,56 @@ public class DependencyAnalyzer {
         stats.put("totalProjects", allProjects.size());
         stats.put("totalDependencies", links.size());
         root.set("stats", stats);
+        
+        // Add issues analysis
+        ProjectIssuesAnalyzer issuesAnalyzer = new ProjectIssuesAnalyzer(allProjects, inHouseDependencies);
+        ProjectIssuesAnalyzer.IssuesReport issuesReport = issuesAnalyzer.analyzeAll();
+        
+        ObjectNode issues = mapper.createObjectNode();
+        
+        // Circular references
+        ArrayNode circularRefs = mapper.createArrayNode();
+        for (List<String> cycle : issuesReport.getCircularReferences()) {
+            ArrayNode cycleArray = mapper.createArrayNode();
+            cycle.forEach(cycleArray::add);
+            circularRefs.add(cycleArray);
+        }
+        issues.set("circularReferences", circularRefs);
+        
+        // Unreferenced projects
+        ArrayNode unreferencedProjects = mapper.createArrayNode();
+        for (Project project : issuesReport.getUnreferencedProjects()) {
+            unreferencedProjects.add(duplicateHandler.getUniqueId(project));
+        }
+        issues.set("unreferencedProjects", unreferencedProjects);
+        
+        // Duplicate artifact IDs
+        ObjectNode duplicateArtifactIds = mapper.createObjectNode();
+        for (Map.Entry<String, List<Project>> entry : issuesReport.getDuplicateArtifactIds().entrySet()) {
+            ArrayNode projectIds = mapper.createArrayNode();
+            for (Project project : entry.getValue()) {
+                projectIds.add(duplicateHandler.getUniqueId(project));
+            }
+            duplicateArtifactIds.set(entry.getKey(), projectIds);
+        }
+        issues.set("duplicateArtifactIds", duplicateArtifactIds);
+        
+        // Duplicate GAVs
+        ObjectNode duplicateGAVs = mapper.createObjectNode();
+        for (Map.Entry<String, List<Project>> entry : issuesReport.getDuplicateGAVs().entrySet()) {
+            ArrayNode projectIds = mapper.createArrayNode();
+            for (Project project : entry.getValue()) {
+                projectIds.add(duplicateHandler.getUniqueId(project));
+            }
+            duplicateGAVs.set(entry.getKey(), projectIds);
+        }
+        issues.set("duplicateGAVs", duplicateGAVs);
+        
+        root.set("issues", issues);
+        
+        // Add metadata
+        root.put("analysisDate", new java.util.Date().toString());
+        root.put("version", "1.0");
         
         // Write to file
         mapper.writerWithDefaultPrettyPrinter().writeValue(

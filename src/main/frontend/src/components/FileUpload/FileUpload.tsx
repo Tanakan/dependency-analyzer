@@ -28,12 +28,27 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onDataLoaded }) => {
 
   const handleLoadDefault = async () => {
     try {
-      const response = await fetch('/dependencies-analysis.json');
+      const response = await fetch('/api/dependencies/data');
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
       const data = await response.json();
       onDataLoaded(data);
     } catch (error) {
       console.error('Failed to load default file:', error);
-      alert('Failed to load default analysis file.');
+      // Fallback to static file
+      try {
+        const fallbackResponse = await fetch('/react/dependencies-analysis.json');
+        if (fallbackResponse.ok) {
+          const fallbackData = await fallbackResponse.json();
+          onDataLoaded(fallbackData);
+        } else {
+          alert('Failed to load analysis data. Please upload a JSON file.');
+        }
+      } catch (fallbackError) {
+        console.error('Fallback also failed:', fallbackError);
+        alert('Failed to load analysis data. Please upload a JSON file.');
+      }
     }
   };
 

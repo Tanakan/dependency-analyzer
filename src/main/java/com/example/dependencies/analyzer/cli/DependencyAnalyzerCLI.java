@@ -2,6 +2,7 @@ package com.example.dependencies.analyzer.cli;
 
 import com.example.dependencies.analyzer.analyzer.InHouseProjectDetector;
 import com.example.dependencies.analyzer.analyzer.DuplicateProjectHandler;
+import com.example.dependencies.analyzer.analyzer.ProjectIssuesAnalyzer;
 import com.example.dependencies.analyzer.model.Dependency;
 import com.example.dependencies.analyzer.model.Project;
 import com.example.dependencies.analyzer.model.ProjectType;
@@ -274,6 +275,48 @@ public class DependencyAnalyzerCLI {
         // Generate graph data
         Map<String, Object> graphData = generateGraphData(allProjects, dependencyMap);
         result.putAll(graphData);
+        
+        // Add issues analysis
+        ProjectIssuesAnalyzer issuesAnalyzer = new ProjectIssuesAnalyzer(allProjects, dependencyMap);
+        ProjectIssuesAnalyzer.IssuesReport issuesReport = issuesAnalyzer.analyzeAll();
+        
+        Map<String, Object> issues = new HashMap<>();
+        
+        // Circular references
+        issues.put("circularReferences", issuesReport.getCircularReferences());
+        
+        // Unreferenced projects
+        List<String> unreferencedProjectIds = new ArrayList<>();
+        DuplicateProjectHandler duplicateHandler = new DuplicateProjectHandler();
+        duplicateHandler.processDuplicates(allProjects);
+        for (Project project : issuesReport.getUnreferencedProjects()) {
+            unreferencedProjectIds.add(duplicateHandler.getUniqueId(project));
+        }
+        issues.put("unreferencedProjects", unreferencedProjectIds);
+        
+        // Duplicate artifact IDs
+        Map<String, List<String>> duplicateArtifactIds = new HashMap<>();
+        for (Map.Entry<String, List<Project>> entry : issuesReport.getDuplicateArtifactIds().entrySet()) {
+            List<String> projectIds = new ArrayList<>();
+            for (Project project : entry.getValue()) {
+                projectIds.add(duplicateHandler.getUniqueId(project));
+            }
+            duplicateArtifactIds.put(entry.getKey(), projectIds);
+        }
+        issues.put("duplicateArtifactIds", duplicateArtifactIds);
+        
+        // Duplicate GAVs
+        Map<String, List<String>> duplicateGAVs = new HashMap<>();
+        for (Map.Entry<String, List<Project>> entry : issuesReport.getDuplicateGAVs().entrySet()) {
+            List<String> projectIds = new ArrayList<>();
+            for (Project project : entry.getValue()) {
+                projectIds.add(duplicateHandler.getUniqueId(project));
+            }
+            duplicateGAVs.put(entry.getKey(), projectIds);
+        }
+        issues.put("duplicateGAVs", duplicateGAVs);
+        
+        result.put("issues", issues);
         
         return result;
     }

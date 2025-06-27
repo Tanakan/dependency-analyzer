@@ -7,27 +7,40 @@
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #333;
 }
 
 .app-header {
-  background-color: #333;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-  padding: 15px;
+  padding: 20px 30px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255,255,255,0.1);
 }
 
 .app-header h1 {
   margin: 0;
-  font-size: 1.5rem;
+  font-size: 1.8rem;
+  font-weight: 600;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  letter-spacing: -0.5px;
 }
 
 .app-content {
   flex: 1;
   display: flex;
   overflow: hidden;
+  background: white;
+  margin: 20px;
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.2);
 }
 
 .app-placeholder {
@@ -36,15 +49,89 @@
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  background-color: #f5f5f5;
+  background: white;
   color: #666;
+  margin: 20px;
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+  text-align: center;
+  padding: 40px;
 }
 
 .app-placeholder h2 {
-  margin-bottom: 10px;
+  margin-bottom: 20px;
   color: #333;
+  font-size: 2.5rem;
+  font-weight: 300;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .app-placeholder p {
-  font-size: 16px;
+  font-size: 18px;
+  line-height: 1.6;
+  max-width: 600px;
+  opacity: 0.8;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .app {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  }
+  
+  .app-header {
+    padding: 15px 20px;
+    flex-direction: column;
+    gap: 15px;
+  }
+  
+  .app-header h1 {
+    font-size: 1.5rem;
+  }
+  
+  .app-content {
+    flex-direction: column;
+    margin: 10px;
+    border-radius: 12px;
+  }
+  
+  .app-placeholder {
+    margin: 10px;
+    padding: 30px 20px;
+    border-radius: 12px;
+  }
+  
+  .app-placeholder h2 {
+    font-size: 2rem;
+  }
+  
+  .app-placeholder p {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .app-header {
+    padding: 12px 15px;
+  }
+  
+  .app-header h1 {
+    font-size: 1.3rem;
+  }
+  
+  .app-content {
+    margin: 8px;
+  }
+  
+  .app-placeholder {
+    margin: 8px;
+    padding: 25px 15px;
+  }
+  
+  .app-placeholder h2 {
+    font-size: 1.8rem;
+  }
 }
