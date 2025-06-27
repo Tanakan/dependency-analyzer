@@ -902,25 +902,55 @@
             const gridPositions = new Array(gridRows).fill(null).map(() => new Array(gridCols).fill(null));
             const repoGridPositions = {};
             
-            sortedRepoNodes.forEach(repoNode => {
+            console.log("DEBUG: Starting sortedRepoNodes.forEach with", sortedRepoNodes.length, "nodes");
+            console.log("DEBUG: Grid dimensions - rows:", gridRows, "cols:", gridCols);
+            console.log("DEBUG: Min/Max coordinates - X:", minX, "to", maxX, "Y:", minY, "to", maxY);
+            
+            sortedRepoNodes.forEach((repoNode, index) => {
+                try {
+                    console.log(`DEBUG: Processing repoNode ${index}:`, repoNode);
+                
                 if (!repoNode || typeof repoNode.x !== 'number' || typeof repoNode.y !== 'number') {
                     console.error("Invalid repoNode in forEach:", repoNode);
                     return;
                 }
                 
                 // Find best grid position based on force simulation result
-                const idealCol = Math.floor((repoNode.x - minX) / (maxX - minX) * (gridCols - 1));
-                const idealRow = Math.floor((repoNode.y - minY) / (maxY - minY) * (gridRows - 1));
+                const widthRange = maxX - minX;
+                const heightRange = maxY - minY;
+                
+                console.log(`DEBUG: Range calculations for ${repoNode.id}:`, {
+                    repoX: repoNode.x, repoY: repoNode.y,
+                    widthRange, heightRange,
+                    minX, maxX, minY, maxY
+                });
+                
+                const idealCol = widthRange > 0 ? Math.floor((repoNode.x - minX) / widthRange * (gridCols - 1)) : 0;
+                const idealRow = heightRange > 0 ? Math.floor((repoNode.y - minY) / heightRange * (gridRows - 1)) : 0;
+                
+                console.log(`DEBUG: Ideal position for ${repoNode.id}:`, {
+                    idealCol, idealRow,
+                    isColValid: !isNaN(idealCol), isRowValid: !isNaN(idealRow)
+                });
+                
+                // Clamp to valid range
+                const clampedCol = Math.max(0, Math.min(gridCols - 1, idealCol));
+                const clampedRow = Math.max(0, Math.min(gridRows - 1, idealRow));
+                
+                console.log(`DEBUG: Clamped position for ${repoNode.id}:`, {
+                    clampedCol, clampedRow,
+                    isColValid: !isNaN(clampedCol), isRowValid: !isNaN(clampedRow)
+                });
                 
                 // Find nearest available position
-                let bestCol = idealCol;
-                let bestRow = idealRow;
+                let bestCol = clampedCol;
+                let bestRow = clampedRow;
                 let minDistance = Infinity;
                 
                 for (let r = 0; r < gridRows; r++) {
                     for (let c = 0; c < gridCols; c++) {
                         if (!gridPositions[r][c]) {
-                            const distance = Math.abs(r - idealRow) + Math.abs(c - idealCol);
+                            const distance = Math.abs(r - clampedRow) + Math.abs(c - clampedCol);
                             if (distance < minDistance) {
                                 minDistance = distance;
                                 bestRow = r;
@@ -930,15 +960,52 @@
                     }
                 }
                 
-                gridPositions[bestRow][bestCol] = repoNode.id;
-                repoGridPositions[repoNode.id] = { row: bestRow, col: bestCol };
+                console.log(`DEBUG: Final position for ${repoNode.id}:`, {
+                    bestRow, bestCol,
+                    isRowValid: !isNaN(bestRow), isColValid: !isNaN(bestCol),
+                    gridRowsExists: gridPositions[bestRow] !== undefined,
+                    gridColExists: gridPositions[bestRow] && gridPositions[bestRow][bestCol] === undefined
+                });
+                
+                // Validate grid position before assignment
+                if (bestRow >= 0 && bestRow < gridRows && bestCol >= 0 && bestCol < gridCols && 
+                    gridPositions[bestRow] && !gridPositions[bestRow][bestCol]) {
+                    
+                    console.log(`DEBUG: Assigning ${repoNode.id} to position [${bestRow}][${bestCol}]`);
+                    gridPositions[bestRow][bestCol] = repoNode.id;
+                    repoGridPositions[repoNode.id] = { row: bestRow, col: bestCol };
+                    console.log(`DEBUG: Assignment successful for ${repoNode.id}`);
+                } else {
+                    console.error("Invalid grid position:", { 
+                        bestRow, bestCol, gridRows, gridCols, repoNode,
+                        rowInRange: bestRow >= 0 && bestRow < gridRows,
+                        colInRange: bestCol >= 0 && bestCol < gridCols,
+                        rowExists: gridPositions[bestRow] !== undefined,
+                        cellEmpty: gridPositions[bestRow] && !gridPositions[bestRow][bestCol]
+                    });
+                }
+                } catch (error) {
+                    console.error(`DEBUG: Error processing repoNode ${index}:`, error);
+                    console.error(`DEBUG: RepoNode data:`, repoNode);
+                    console.error(`DEBUG: Error stack:`, error.stack);
+                    throw error; // Re-throw to see the exact line
+                }
             });
             
             // Pre-calculate all repository positions
             repositoryLayoutData = [];
-            repos.forEach(([repo, nodes]) => {
+            console.log("DEBUG: Processing repos for layout data, repos.length:", repos.length);
+            
+            repos.forEach(([repo, nodes], index) => {
+                console.log(`DEBUG: Processing repo ${index}: "${repo}" with nodes:`, nodes);
+                
                 const gridPos = repoGridPositions[repo];
-                if (!gridPos) return;
+                if (!gridPos) {
+                    console.log(`DEBUG: No grid position found for repo "${repo}"`);
+                    return;
+                }
+                
+                console.log(`DEBUG: Grid position for "${repo}":`, gridPos);
                 
                 const col = gridPos.col;
                 const row = gridPos.row;
