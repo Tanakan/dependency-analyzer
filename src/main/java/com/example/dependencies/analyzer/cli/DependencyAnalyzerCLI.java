@@ -231,16 +231,9 @@ public class DependencyAnalyzerCLI {
             node.put("packaging", project.getPackaging() != null ? project.getPackaging() : "jar");
             
             // Determine node group for coloring
-            String nodeGroup = "default";
-            if (project.getProjectPath() != null) {
-                Path repoPath = project.getProjectPath();
-                // Find the git repository root
-                while (repoPath != null && !Files.exists(repoPath.resolve(".git"))) {
-                    repoPath = repoPath.getParent();
-                }
-                if (repoPath != null) {
-                    nodeGroup = repoPath.getFileName().toString();
-                }
+            String nodeGroup = determineNodeGroup(project);
+            if (nodeGroup == null || nodeGroup.isEmpty()) {
+                nodeGroup = "default";
             }
             node.put("nodeGroup", nodeGroup);
             
@@ -385,6 +378,76 @@ public class DependencyAnalyzerCLI {
         }
         
         logger.info("Graph data validation passed successfully");
+    }
+    
+    private String determineNodeGroup(Project project) {
+        // Priority 1: Use artifact ID if it makes sense as a project name
+        if (project.getArtifactId() != null && !project.getArtifactId().isEmpty()) {
+            String artifactId = project.getArtifactId();
+            
+            // If artifact ID is meaningful (not just generic names), use it
+            if (!isGenericArtifactId(artifactId)) {
+                return artifactId;
+            }
+        }
+        
+        // Priority 2: Use group ID's last component
+        if (project.getGroupId() != null && !project.getGroupId().isEmpty()) {
+            String[] groupParts = project.getGroupId().split("\\.");
+            if (groupParts.length > 0) {
+                String lastPart = groupParts[groupParts.length - 1];
+                if (!lastPart.isEmpty() && !isGenericGroupPart(lastPart)) {
+                    return lastPart;
+                }
+            }
+        }
+        
+        // Priority 3: Use repository directory name
+        if (project.getProjectPath() != null) {
+            Path repoPath = project.getProjectPath();
+            // Find the git repository root
+            while (repoPath != null && !Files.exists(repoPath.resolve(".git"))) {
+                repoPath = repoPath.getParent();
+            }
+            if (repoPath != null) {
+                String repoName = repoPath.getFileName().toString();
+                // Skip if it's a generic test directory
+                if (!isGenericDirectoryName(repoName)) {
+                    return repoName;
+                }
+            }
+        }
+        
+        // Priority 4: Fallback to artifact ID even if generic
+        if (project.getArtifactId() != null && !project.getArtifactId().isEmpty()) {
+            return project.getArtifactId();
+        }
+        
+        return "unknown";
+    }
+    
+    private boolean isGenericArtifactId(String artifactId) {
+        Set<String> genericNames = Set.of(
+            "project", "app", "application", "service", "module", 
+            "core", "common", "util", "utils", "lib", "library"
+        );
+        return genericNames.contains(artifactId.toLowerCase());
+    }
+    
+    private boolean isGenericGroupPart(String groupPart) {
+        Set<String> genericParts = Set.of(
+            "example", "test", "demo", "sample", "project", 
+            "app", "application", "com", "org", "net"
+        );
+        return genericParts.contains(groupPart.toLowerCase());
+    }
+    
+    private boolean isGenericDirectoryName(String dirName) {
+        Set<String> genericDirs = Set.of(
+            "test-projects", "test", "demo", "sample", "examples", 
+            "projects", "repos", "repositories"
+        );
+        return genericDirs.contains(dirName.toLowerCase());
     }
     
     private void saveAnalysisResult(Map<String, Object> analysisResult) throws IOException {
