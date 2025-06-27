@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useMemo } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import ReactFlow, {
   Node as FlowNode,
   Edge,
@@ -20,29 +20,63 @@ import './Graph.css';
 // Custom node component for Maven/Gradle projects
 const CustomNode: React.FC<NodeProps> = ({ data }) => {
   const isPom = data.packaging === 'pom';
+  const isWar = data.packaging === 'war';
+  
+  // Different styles for different packaging types
+  const getNodeStyle = () => {
+    if (isPom) {
+      return {
+        borderRadius: '0px',
+        borderStyle: 'dashed' as const,
+        borderWidth: '3px',
+        borderColor: '#d97706',
+        backgroundColor: data.backgroundColor || (data.selected ? '#f59e0b' : '#fbbf24'),
+      };
+    } else if (isWar) {
+      return {
+        borderRadius: '8px',
+        borderStyle: 'solid' as const,
+        borderWidth: '2px',
+        borderColor: '#dc2626',
+        backgroundColor: data.backgroundColor || (data.selected ? '#fca5a5' : '#fecaca'),
+      };
+    } else {
+      // Default for jar and others
+      return {
+        borderRadius: '16px',
+        borderStyle: 'solid' as const,
+        borderWidth: '2px',
+        borderColor: '#2563eb',
+        backgroundColor: data.backgroundColor || (data.selected ? '#93c5fd' : '#bfdbfe'),
+      };
+    }
+  };
+  
+  const nodeStyle = getNodeStyle();
   
   return (
     <div 
-      className={`custom-node ${isPom ? 'pom-node' : 'jar-node'}`}
+      className={`custom-node ${isPom ? 'pom-node' : isWar ? 'war-node' : 'jar-node'}`}
       style={{
         padding: '8px 12px',
-        borderRadius: isPom ? '4px' : '16px',
-        border: '1px solid',
-        borderColor: data.borderColor || '#e5e7eb',
-        backgroundColor: data.backgroundColor || '#fff',
+        borderRadius: nodeStyle.borderRadius,
+        border: `${nodeStyle.borderWidth} ${nodeStyle.borderStyle}`,
+        borderColor: nodeStyle.borderColor,
+        backgroundColor: nodeStyle.backgroundColor,
         fontSize: '12px',
         fontWeight: '500',
         textAlign: 'center',
         minWidth: '100px',
         boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+        position: 'relative',
       }}
     >
       <Handle type="target" position={Position.Top} id="target-top" style={{ visibility: 'hidden' }} />
       <Handle type="target" position={Position.Right} id="target-right" style={{ visibility: 'hidden' }} />
       <Handle type="target" position={Position.Bottom} id="target-bottom" style={{ visibility: 'hidden' }} />
       <Handle type="target" position={Position.Left} id="target-left" style={{ visibility: 'hidden' }} />
-      <div>{data.label}</div>
-      <div style={{ fontSize: '10px', color: '#666', marginTop: '2px' }}>
+      <div style={{ color: '#1f2937', fontWeight: '600' }}>{data.label}</div>
+      <div style={{ fontSize: '10px', color: '#6b7280', marginTop: '2px' }}>
         {data.version}
       </div>
       <Handle type="source" position={Position.Top} id="source-top" style={{ visibility: 'hidden' }} />
@@ -65,6 +99,7 @@ const GroupNode: React.FC<NodeProps> = ({ data }) => {
         textAlign: 'left',
         letterSpacing: '0.5px',
         textTransform: 'uppercase',
+        whiteSpace: 'nowrap',
       }}>
         {data.label}
       </div>
@@ -88,98 +123,119 @@ export const Graph: React.FC<GraphProps> = ({ data, selectedNode, selectedReposi
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
-  // Create a color map for repositories
-  const repoColorMap = useMemo(() => {
-    if (!data) return new Map();
-    
-    // Color palette for repositories
-    const colorPalette = [
-      '#6366f1', '#8b5cf6', '#3b82f6', '#0ea5e9', '#06b6d4', 
-      '#14b8a6', '#10b981', '#84cc16', '#f59e0b', '#f97316'
-    ];
-    
-    const repos = Array.from(new Set(data.nodes.map(n => n.nodeGroup)));
-    const map = new Map<string, string>();
-    repos.forEach((repo, index) => {
-      map.set(repo, colorPalette[index % colorPalette.length]);
-    });
-    return map;
-  }, [data]);
 
   useEffect(() => {
     if (!data) return;
 
-    // Group nodes by repository for layout
+    // Filter out all pom projects
+    const pomNodeIds = new Set(
+      data.nodes
+        .filter(node => node.packaging === 'pom')
+        .map(node => node.id)
+    );
+
+    // Group nodes by repository for layout, excluding pom projects
     const nodesByRepo = new Map<string, Node[]>();
     data.nodes.forEach(node => {
-      const repo = node.nodeGroup;
-      if (!nodesByRepo.has(repo)) {
-        nodesByRepo.set(repo, []);
+      if (node.packaging !== 'pom') {
+        const repo = node.nodeGroup;
+        if (!nodesByRepo.has(repo)) {
+          nodesByRepo.set(repo, []);
+        }
+        nodesByRepo.get(repo)!.push(node);
       }
-      nodesByRepo.get(repo)!.push(node);
     });
 
-    // Calculate grid layout for repositories
-    const repos = Array.from(nodesByRepo.entries());
-    const cols = Math.ceil(Math.sqrt(repos.length));
-    const repoSpacing = 50;
+    // Calculate grid layout for repositories (only non-empty ones)
+    const repos = Array.from(nodesByRepo.entries()).filter(([, nodes]) => nodes.length > 0);
+    const repoSpacing = 80; // Increased spacing between repos
     const nodePadding = 40; // Padding around nodes
     const nodeWidth = 120;
     const nodeHeight = 80;
-    const nodeSpacing = 20; // Space between nodes
+    const nodeSpacing = 25; // Space between nodes
 
-    // Create React Flow nodes
-    const flowNodes: FlowNode[] = [];
-    const nodePositions = new Map<string, { x: number; y: number }>();
-
-    repos.forEach(([repoName, repoNodes], repoIndex) => {
-      // Calculate dimensions based on number of nodes
-      const nodesPerRow = Math.min(Math.ceil(Math.sqrt(repoNodes.length)), 4); // Max 4 nodes per row
+    // First pass: calculate all repository dimensions
+    const repoDimensions = new Map<string, { width: number; height: number; nodesPerRow: number }>();
+    
+    repos.forEach(([repoName, repoNodes]) => {
+      // Dynamic calculation based on number of nodes
+      let nodesPerRow;
+      if (repoNodes.length <= 3) {
+        nodesPerRow = repoNodes.length; // Single row for small repos
+      } else if (repoNodes.length <= 8) {
+        nodesPerRow = Math.ceil(Math.sqrt(repoNodes.length)); // Square-ish layout
+      } else if (repoNodes.length <= 16) {
+        nodesPerRow = 4; // Max 4 per row for medium repos
+      } else {
+        nodesPerRow = 5; // Max 5 per row for large repos
+      }
+      
       const numRows = Math.ceil(repoNodes.length / nodesPerRow);
       
-      // Calculate repository frame size based on content
-      const repoWidth = nodePadding * 2 + nodesPerRow * nodeWidth + (nodesPerRow - 1) * nodeSpacing;
-      const repoHeight = nodePadding * 2 + 40 + numRows * nodeHeight + (numRows - 1) * nodeSpacing; // +40 for title
+      // Calculate width based on content and repository name length
+      const contentWidth = nodePadding * 2 + nodesPerRow * nodeWidth + (nodesPerRow - 1) * nodeSpacing;
+      // Estimate text width (18px font * 0.7 average char width * uppercase factor 1.1)
+      const nameWidth = repoName.length * 18 * 0.7 * 1.1 + nodePadding * 2;
+      const repoWidth = Math.max(contentWidth, nameWidth);
+      
+      const repoHeight = nodePadding * 2 + 50 + numRows * nodeHeight + (numRows - 1) * nodeSpacing; // +50 for title
+      
+      repoDimensions.set(repoName, { width: repoWidth, height: repoHeight, nodesPerRow });
+    });
 
-      // Calculate position in grid
-      const col = repoIndex % cols;
-      const row = Math.floor(repoIndex / cols);
+    // Second pass: calculate flexible grid layout
+    const flowNodes: FlowNode[] = [];
+    const nodePositions = new Map<string, { x: number; y: number }>();
+    
+    // Dynamic column calculation based on total width
+    const sortedRepos = repos.sort((a, b) => b[1].length - a[1].length); // Sort by node count
+    const maxWidth = 2000; // Maximum viewport width
+    
+    let currentX = 0;
+    let currentY = 0;
+    let rowHeight = 0;
+    
+    sortedRepos.forEach(([repoName, repoNodes]) => {
+      const dimensions = repoDimensions.get(repoName)!;
       
-      // Simple grid positioning with dynamic sizing
-      const maxRepoWidth = nodePadding * 2 + 4 * nodeWidth + 3 * nodeSpacing; // Max width for 4 nodes per row
-      const maxRepoHeight = 400; // Reasonable max height
+      // Check if we need to wrap to next row
+      if (currentX > 0 && currentX + dimensions.width > maxWidth) {
+        currentX = 0;
+        currentY += rowHeight + repoSpacing;
+        rowHeight = 0;
+      }
       
-      const repoX = col * (maxRepoWidth + repoSpacing);
-      const repoY = row * (maxRepoHeight + repoSpacing);
+      // Update row height
+      rowHeight = Math.max(rowHeight, dimensions.height);
 
       // Add repository group node
       flowNodes.push({
         id: `group-${repoName}`,
         type: 'group',
-        position: { x: repoX, y: repoY },
+        position: { x: currentX, y: currentY },
         data: { 
           label: repoName,
-          color: repoColorMap.get(repoName),
+          color: '#6b7280',
         },
         style: {
-          width: repoWidth,
-          height: repoHeight,
+          width: dimensions.width,
+          height: dimensions.height,
           backgroundColor: 'rgba(240, 240, 240, 0.5)',
-          border: `2px dashed ${repoColorMap.get(repoName)}`,
+          border: '2px dashed #9ca3af',
           borderRadius: '8px',
         },
       });
 
       // Position nodes within repository
       repoNodes.forEach((node, nodeIndex) => {
-        const nodeCol = nodeIndex % nodesPerRow;
-        const nodeRow = Math.floor(nodeIndex / nodesPerRow);
+        const nodeCol = nodeIndex % dimensions.nodesPerRow;
+        const nodeRow = Math.floor(nodeIndex / dimensions.nodesPerRow);
         // Use relative position for nodes within groups
         const x = nodePadding + nodeCol * (nodeWidth + nodeSpacing);
-        const y = nodePadding + 40 + nodeRow * (nodeHeight + nodeSpacing); // +40 for title space
+        const y = nodePadding + 50 + nodeRow * (nodeHeight + nodeSpacing); // +50 for title space
 
         // Store absolute position for edge routing
-        nodePositions.set(node.id, { x: repoX + x, y: repoY + y });
+        nodePositions.set(node.id, { x: currentX + x, y: currentY + y });
 
         flowNodes.push({
           id: node.id,
@@ -189,81 +245,88 @@ export const Graph: React.FC<GraphProps> = ({ data, selectedNode, selectedReposi
             label: node.name,
             version: node.version,
             packaging: node.packaging,
-            borderColor: repoColorMap.get(repoName),
-            backgroundColor: selectedNode === node.id ? 
-              `${repoColorMap.get(repoName)}20` : '#fff',
+            selected: selectedNode === node.id,
           },
           parentNode: `group-${repoName}`,
           extent: 'parent',
           draggable: true,
         });
       });
+      
+      // Move to next position
+      currentX += dimensions.width + repoSpacing;
     });
 
-    // Create React Flow edges
-    const flowEdges: Edge[] = data.links.map((link, index) => {
-      const sourceId = typeof link.source === 'string' ? link.source : (link.source as any).id;
-      const targetId = typeof link.target === 'string' ? link.target : (link.target as any).id;
+    // Create React Flow edges, excluding those connected to pom projects
+    const flowEdges: Edge[] = data.links
+      .filter(link => {
+        const sourceId = typeof link.source === 'string' ? link.source : (link.source as any).id;
+        const targetId = typeof link.target === 'string' ? link.target : (link.target as any).id;
+        return !pomNodeIds.has(sourceId) && !pomNodeIds.has(targetId);
+      })
+      .map((link, index) => {
+        const sourceId = typeof link.source === 'string' ? link.source : (link.source as any).id;
+        const targetId = typeof link.target === 'string' ? link.target : (link.target as any).id;
 
-      // Get node positions to determine best connection points
-      const sourcePos = nodePositions.get(sourceId);
-      const targetPos = nodePositions.get(targetId);
-      
-      let sourceHandle = 'source-bottom';
-      let targetHandle = 'target-top';
-      
-      if (sourcePos && targetPos) {
-        const dx = targetPos.x - sourcePos.x;
-        const dy = targetPos.y - sourcePos.y;
+        // Get node positions to determine best connection points
+        const sourcePos = nodePositions.get(sourceId);
+        const targetPos = nodePositions.get(targetId);
         
-        // Determine best connection based on relative positions
-        if (Math.abs(dx) > Math.abs(dy)) {
-          // Horizontal connection is better
-          if (dx > 0) {
-            sourceHandle = 'source-right';
-            targetHandle = 'target-left';
+        let sourceHandle = 'source-bottom';
+        let targetHandle = 'target-top';
+        
+        if (sourcePos && targetPos) {
+          const dx = targetPos.x - sourcePos.x;
+          const dy = targetPos.y - sourcePos.y;
+          
+          // Determine best connection based on relative positions
+          if (Math.abs(dx) > Math.abs(dy)) {
+            // Horizontal connection is better
+            if (dx > 0) {
+              sourceHandle = 'source-right';
+              targetHandle = 'target-left';
+            } else {
+              sourceHandle = 'source-left';
+              targetHandle = 'target-right';
+            }
           } else {
-            sourceHandle = 'source-left';
-            targetHandle = 'target-right';
-          }
-        } else {
-          // Vertical connection is better
-          if (dy > 0) {
-            sourceHandle = 'source-bottom';
-            targetHandle = 'target-top';
-          } else {
-            sourceHandle = 'source-top';
-            targetHandle = 'target-bottom';
+            // Vertical connection is better
+            if (dy > 0) {
+              sourceHandle = 'source-bottom';
+              targetHandle = 'target-top';
+            } else {
+              sourceHandle = 'source-top';
+              targetHandle = 'target-bottom';
+            }
           }
         }
-      }
 
-      return {
-        id: `e${index}`,
-        source: sourceId,
-        target: targetId,
-        sourceHandle,
-        targetHandle,
-        type: 'default',
-        animated: false, // No animation
-        style: {
-          stroke: selectedNode === sourceId || selectedNode === targetId ? 
-            '#4f46e5' : '#374151',
-          strokeWidth: selectedNode === sourceId || selectedNode === targetId ? 4 : 3,
-        },
-        markerEnd: {
-          type: MarkerType.ArrowClosed,
-          color: selectedNode === sourceId || selectedNode === targetId ? 
-            '#4f46e5' : '#374151',
-          width: 25,
-          height: 25,
-        },
-      };
-    });
+        return {
+          id: `e${index}`,
+          source: sourceId,
+          target: targetId,
+          sourceHandle,
+          targetHandle,
+          type: 'default',
+          animated: false, // No animation
+          style: {
+            stroke: selectedNode === sourceId || selectedNode === targetId ? 
+              '#4f46e5' : '#374151',
+            strokeWidth: selectedNode === sourceId || selectedNode === targetId ? 4 : 3,
+          },
+          markerEnd: {
+            type: MarkerType.ArrowClosed,
+            color: selectedNode === sourceId || selectedNode === targetId ? 
+              '#4f46e5' : '#374151',
+            width: 15,
+            height: 15,
+          },
+        };
+      });
 
     setNodes(flowNodes);
     setEdges(flowEdges);
-  }, [data, selectedNode, selectedRepository, repoColorMap, setNodes, setEdges]);
+  }, [data, selectedNode, selectedRepository, setNodes, setEdges]);
 
   // Calculate transitive dependencies
   const getTransitiveDependencies = useCallback((nodeId: string, links: any[]): Set<string> => {
@@ -362,8 +425,8 @@ export const Graph: React.FC<GraphProps> = ({ data, selectedNode, selectedReposi
           markerEnd: {
             type: MarkerType.ArrowClosed,
             color: isHighlighted ? '#4f46e5' : '#374151',
-            width: 25,
-            height: 25,
+            width: 15,
+            height: 15,
           },
         };
       })
@@ -402,7 +465,7 @@ export const Graph: React.FC<GraphProps> = ({ data, selectedNode, selectedReposi
             if (node.type === 'group') {
               return 'rgba(240, 240, 240, 0.5)';
             }
-            return node.data?.borderColor || '#667eea';
+            return '#6b7280';
           }}
           style={{
             backgroundColor: 'rgba(255, 255, 255, 0.8)',
