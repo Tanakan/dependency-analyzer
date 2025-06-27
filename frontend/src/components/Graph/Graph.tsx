@@ -58,7 +58,7 @@ const CustomNode: React.FC<NodeProps> = ({ data }) => {
     <div 
       className={`custom-node ${isPom ? 'pom-node' : isWar ? 'war-node' : 'jar-node'}`}
       style={{
-        padding: '8px 12px',
+        padding: '10px 15px',
         borderRadius: nodeStyle.borderRadius,
         border: `${nodeStyle.borderWidth} ${nodeStyle.borderStyle}`,
         borderColor: nodeStyle.borderColor,
@@ -66,7 +66,7 @@ const CustomNode: React.FC<NodeProps> = ({ data }) => {
         fontSize: '12px',
         fontWeight: '500',
         textAlign: 'center',
-        minWidth: '100px',
+        minWidth: '120px',
         boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
         position: 'relative',
       }}
@@ -123,6 +123,70 @@ export const Graph: React.FC<GraphProps> = ({ data, selectedNode, selectedReposi
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
+  // Custom node change handler with collision detection
+  const handleNodesChange = useCallback((changes: any[]) => {
+    const nodeMap = new Map(nodes.map(n => [n.id, n]));
+    
+    // Filter position changes
+    const positionChanges = changes.filter(change => change.type === 'position' && change.dragging);
+    
+    if (positionChanges.length > 0) {
+      const modifiedChanges = changes.map(change => {
+        if (change.type === 'position' && change.dragging && change.position) {
+          const movingNode = nodeMap.get(change.id);
+          if (!movingNode || movingNode.type !== 'custom') return change;
+          
+          const nodeWidth = 150;
+          const nodeHeight = 80;
+          const minDistance = 10; // Minimum gap between nodes
+          
+          let newX = change.position.x;
+          let newY = change.position.y;
+          
+          // Check collision with other nodes in the same parent
+          const parentId = movingNode.parentNode;
+          const siblingNodes = nodes.filter(n => 
+            n.id !== change.id && 
+            n.parentNode === parentId && 
+            n.type === 'custom'
+          );
+          
+          for (const sibling of siblingNodes) {
+            const dx = Math.abs(newX - sibling.position.x);
+            const dy = Math.abs(newY - sibling.position.y);
+            
+            // If nodes would overlap
+            if (dx < nodeWidth + minDistance && dy < nodeHeight + minDistance) {
+              // Push the moving node away
+              if (dx < dy) {
+                // Adjust Y position
+                if (newY < sibling.position.y) {
+                  newY = sibling.position.y - nodeHeight - minDistance;
+                } else {
+                  newY = sibling.position.y + nodeHeight + minDistance;
+                }
+              } else {
+                // Adjust X position
+                if (newX < sibling.position.x) {
+                  newX = sibling.position.x - nodeWidth - minDistance;
+                } else {
+                  newX = sibling.position.x + nodeWidth + minDistance;
+                }
+              }
+            }
+          }
+          
+          return { ...change, position: { x: newX, y: newY } };
+        }
+        return change;
+      });
+      
+      onNodesChange(modifiedChanges);
+    } else {
+      onNodesChange(changes);
+    }
+  }, [nodes, onNodesChange]);
+
 
   useEffect(() => {
     if (!data) return;
@@ -148,24 +212,26 @@ export const Graph: React.FC<GraphProps> = ({ data, selectedNode, selectedReposi
 
     // Calculate grid layout for repositories (only non-empty ones)
     const repos = Array.from(nodesByRepo.entries()).filter(([, nodes]) => nodes.length > 0);
-    const repoSpacing = 80; // Increased spacing between repos
-    const nodePadding = 40; // Padding around nodes
-    const nodeWidth = 120;
-    const nodeHeight = 80;
-    const nodeSpacing = 25; // Space between nodes
+    const repoSpacing = 150; // Large spacing between repos
+    const nodePadding = 60; // Padding around nodes
+    const nodeWidth = 150; // Fixed node width for calculations
+    const nodeHeight = 80; // Fixed node height including text
+    const nodeSpacing = 50; // Guaranteed space between nodes
 
     // First pass: calculate all repository dimensions
     const repoDimensions = new Map<string, { width: number; height: number; nodesPerRow: number }>();
     
     repos.forEach(([repoName, repoNodes]) => {
-      // Dynamic calculation based on number of nodes
+      // Dynamic calculation based on number of nodes - more conservative to prevent overlap
       let nodesPerRow;
-      if (repoNodes.length <= 3) {
-        nodesPerRow = repoNodes.length; // Single row for small repos
-      } else if (repoNodes.length <= 8) {
-        nodesPerRow = Math.ceil(Math.sqrt(repoNodes.length)); // Square-ish layout
+      if (repoNodes.length <= 2) {
+        nodesPerRow = repoNodes.length; // Single row for 1-2 nodes
+      } else if (repoNodes.length <= 4) {
+        nodesPerRow = 2; // 2x2 grid for 3-4 nodes
+      } else if (repoNodes.length <= 9) {
+        nodesPerRow = 3; // 3x3 grid for 5-9 nodes
       } else if (repoNodes.length <= 16) {
-        nodesPerRow = 4; // Max 4 per row for medium repos
+        nodesPerRow = 4; // 4x4 grid for 10-16 nodes
       } else {
         nodesPerRow = 5; // Max 5 per row for large repos
       }
@@ -178,7 +244,7 @@ export const Graph: React.FC<GraphProps> = ({ data, selectedNode, selectedReposi
       const nameWidth = repoName.length * 18 * 0.7 * 1.1 + nodePadding * 2;
       const repoWidth = Math.max(contentWidth, nameWidth);
       
-      const repoHeight = nodePadding * 2 + 50 + numRows * nodeHeight + (numRows - 1) * nodeSpacing; // +50 for title
+      const repoHeight = nodePadding * 2 + 60 + numRows * nodeHeight + (numRows - 1) * nodeSpacing; // +60 for title with more space
       
       repoDimensions.set(repoName, { width: repoWidth, height: repoHeight, nodesPerRow });
     });
@@ -224,15 +290,18 @@ export const Graph: React.FC<GraphProps> = ({ data, selectedNode, selectedReposi
           border: '2px dashed #9ca3af',
           borderRadius: '8px',
         },
+        draggable: false,
+        connectable: false,
+        selectable: false,
       });
 
       // Position nodes within repository
       repoNodes.forEach((node, nodeIndex) => {
         const nodeCol = nodeIndex % dimensions.nodesPerRow;
         const nodeRow = Math.floor(nodeIndex / dimensions.nodesPerRow);
-        // Use relative position for nodes within groups
+        // Use relative position for nodes within groups with guaranteed spacing
         const x = nodePadding + nodeCol * (nodeWidth + nodeSpacing);
-        const y = nodePadding + 50 + nodeRow * (nodeHeight + nodeSpacing); // +50 for title space
+        const y = nodePadding + 60 + nodeRow * (nodeHeight + nodeSpacing); // +60 for title space
 
         // Store absolute position for edge routing
         nodePositions.set(node.id, { x: currentX + x, y: currentY + y });
@@ -250,6 +319,9 @@ export const Graph: React.FC<GraphProps> = ({ data, selectedNode, selectedReposi
           parentNode: `group-${repoName}`,
           extent: 'parent',
           draggable: true,
+          connectable: false,
+          selectable: true,
+          zIndex: 10,
         });
       });
       
@@ -449,17 +521,39 @@ export const Graph: React.FC<GraphProps> = ({ data, selectedNode, selectedReposi
       <ReactFlow
         nodes={nodes}
         edges={edges}
-        onNodesChange={onNodesChange}
+        onNodesChange={handleNodesChange}
         onEdgesChange={onEdgesChange}
         onNodeClick={onNodeClick}
         nodeTypes={nodeTypes}
         fitView
-        fitViewOptions={{ padding: 0.2 }}
-        minZoom={0.1}
-        maxZoom={2}
+        fitViewOptions={{ 
+          padding: 0.15,
+          includeHiddenNodes: false,
+          minZoom: 0.3,
+          maxZoom: 1.5,
+          duration: 800
+        }}
+        minZoom={0.2}
+        maxZoom={3}
+        defaultViewport={{ x: 50, y: 50, zoom: 0.8 }}
+        nodesDraggable={true}
+        nodesConnectable={false}
+        elementsSelectable={true}
+        preventScrolling={false}
+        snapToGrid={true}
+        snapGrid={[10, 10]}
+        zoomOnScroll={true}
+        zoomOnPinch={true}
+        zoomOnDoubleClick={true}
+        panOnScroll={false}
+        panOnScrollSpeed={0.5}
+        panOnDrag={true}
       >
         <Background variant={BackgroundVariant.Dots} color="#e5e7eb" gap={20} size={1} />
-        <Controls />
+        <Controls 
+          showInteractive={false}
+          position="top-right"
+        />
         <MiniMap 
           nodeColor={(node) => {
             if (node.type === 'group') {
