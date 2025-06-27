@@ -814,11 +814,13 @@
             });
             
             // Use force simulation to position repositories
-            const repoNodes = repos.map(([name, nodes]) => ({
-                id: name,
-                nodeCount: nodes.length,
-                connections: repoConnections[name] || 0
-            }));
+            const repoNodes = repos
+                .filter(([name, nodes]) => name && nodes && Array.isArray(nodes))
+                .map(([name, nodes]) => ({
+                    id: name,
+                    nodeCount: nodes.length,
+                    connections: repoConnections[name] || 0
+                }));
             
             // Debug: Show top connected repositories
             const sortedByConnections = [...repoNodes].sort((a, b) => b.connections - a.connections);
@@ -865,16 +867,23 @@
             const minMargin = 50;
             
             // Sort repositories by position for consistent grid assignment
-            const sortedRepoNodes = [...repoNodes].sort((a, b) => {
-                // Primary sort by y position (row)
-                const rowA = Math.floor(a.y / cellHeight);
-                const rowB = Math.floor(b.y / cellHeight);
-                if (rowA !== rowB) return rowA - rowB;
-                // Secondary sort by x position (column)
-                return a.x - b.x;
-            });
+            const sortedRepoNodes = [...repoNodes]
+                .filter(node => node && typeof node.x === 'number' && typeof node.y === 'number')
+                .sort((a, b) => {
+                    // Primary sort by y position (row)
+                    const rowA = Math.floor(a.y / cellHeight);
+                    const rowB = Math.floor(b.y / cellHeight);
+                    if (rowA !== rowB) return rowA - rowB;
+                    // Secondary sort by x position (column)
+                    return a.x - b.x;
+                });
             
             // Calculate grid dimensions based on repository positions
+            if (sortedRepoNodes.length === 0) {
+                console.error("No valid repository nodes found");
+                return;
+            }
+            
             const minX = Math.min(...sortedRepoNodes.map(n => n.x));
             const maxX = Math.max(...sortedRepoNodes.map(n => n.x));
             const minY = Math.min(...sortedRepoNodes.map(n => n.y));
@@ -894,6 +903,11 @@
             const repoGridPositions = {};
             
             sortedRepoNodes.forEach(repoNode => {
+                if (!repoNode || typeof repoNode.x !== 'number' || typeof repoNode.y !== 'number') {
+                    console.error("Invalid repoNode in forEach:", repoNode);
+                    return;
+                }
+                
                 // Find best grid position based on force simulation result
                 const idealCol = Math.floor((repoNode.x - minX) / (maxX - minX) * (gridCols - 1));
                 const idealRow = Math.floor((repoNode.y - minY) / (maxY - minY) * (gridRows - 1));
