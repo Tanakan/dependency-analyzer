@@ -887,11 +887,23 @@
             const maxNodesInRepo = Math.max(...Object.values(projectsByRepo).map(nodes => nodes.length));
             const baseWidth = 350;
             const baseHeight = 300;
-            const nodeSpacing = 120; // Space needed per node
             
-            // Dynamic cell dimensions based on content - more generous sizing
-            const cellWidth = Math.max(baseWidth, Math.min(800, baseWidth + Math.sqrt(maxNodesInRepo) * 60));
-            const cellHeight = Math.max(baseHeight, Math.min(700, baseHeight + Math.sqrt(maxNodesInRepo) * 50));
+            // Dynamic cell dimensions based on content - ensure enough space for all nodes
+            // Calculate optimal grid layout for maximum nodes
+            const fixedNodeSpacing = 100; // Fixed spacing between nodes
+            const minPadding = 80; // Minimum padding around edges
+            
+            // Calculate grid dimensions for the largest repository
+            const optimalCols = Math.ceil(Math.sqrt(maxNodesInRepo * 1.3)); // Slightly rectangular
+            const optimalRows = Math.ceil(maxNodesInRepo / optimalCols);
+            
+            // Calculate required cell size to fit all nodes without overlap
+            const requiredWidth = optimalCols * fixedNodeSpacing + minPadding * 2;
+            const requiredHeight = optimalRows * fixedNodeSpacing + minPadding * 2;
+            
+            // Set cell dimensions with reasonable limits
+            const cellWidth = Math.max(baseWidth, Math.min(2000, requiredWidth));
+            const cellHeight = Math.max(baseHeight, Math.min(2000, requiredHeight));
             
             const cellMargin = 25;
             const minMargin = 50;
@@ -1104,10 +1116,11 @@
                 });
                 
                 // Set initial positions with no overlap using grid layout
-                const nodeRadius = 15; // Node visual radius
-                const labelHeight = 40; // Space needed for text below node
-                const minNodeSpacing = 120; // Much larger spacing to prevent any overlap
-                const cellPadding = 60; // Increased padding from cell edges
+                // Fixed sizes for consistency and readability
+                const nodeRadius = 12; // Consistent node size
+                const labelHeight = 35; // Space for label
+                const minNodeSpacing = 100; // Guaranteed spacing between nodes
+                const cellPadding = 40; // Padding from cell edges
                 
                 if (nodes.length === 1 && nodes[0]) {
                     nodes[0].x = cellCenterX;
@@ -1188,27 +1201,46 @@
                                 }
                             }
                         } else {
-                            // Use grid layout for very large repositories
-                            const gridSpacing = minNodeSpacing * 1.2; // Even more space for grid layout
-                            const nodesPerRow = Math.floor(availableWidth / gridSpacing);
-                            const nodesPerCol = Math.floor(availableHeight / gridSpacing);
+                            // Use grid layout for larger repositories
+                            // Calculate available space
+                            const totalAvailableWidth = availableWidth - 20;
+                            const totalAvailableHeight = availableHeight - 20;
                             
-                            // Calculate actual grid dimensions to center the grid
-                            const actualCols = Math.min(nodesPerRow, Math.ceil(Math.sqrt(nodes.length * 1.3)));
+                            // Calculate optimal spacing that guarantees all nodes fit
+                            const totalArea = totalAvailableWidth * totalAvailableHeight;
+                            const areaPerNode = totalArea / nodes.length;
+                            const optimalSpacing = Math.sqrt(areaPerNode) * 0.85; // 85% to ensure padding
+                            
+                            // Ensure minimum spacing for readability, but allow smaller spacing for very large repos
+                            const finalSpacing = nodes.length > 100 ? Math.max(50, optimalSpacing) : Math.max(minNodeSpacing, optimalSpacing);
+                            
+                            // Calculate grid dimensions
+                            const actualCols = Math.floor(totalAvailableWidth / finalSpacing);
                             const actualRows = Math.ceil(nodes.length / actualCols);
                             
-                            const gridWidth = actualCols * gridSpacing;
-                            const gridHeight = actualRows * gridSpacing;
-                            const gridStartX = cellCenterX - gridWidth / 2;
-                            const gridStartY = cellCenterY - gridHeight / 2;
+                            // If it still doesn't fit, force it to fit
+                            let uniformSpacing = finalSpacing;
+                            if (actualRows * finalSpacing > totalAvailableHeight) {
+                                // Recalculate to ensure it fits
+                                const spacingX = totalAvailableWidth / actualCols;
+                                const spacingY = totalAvailableHeight / actualRows;
+                                uniformSpacing = Math.min(spacingX, spacingY) * 0.95; // 95% to add small padding
+                            }
                             
+                            // Center the grid
+                            const gridWidth = actualCols * uniformSpacing;
+                            const gridHeight = actualRows * uniformSpacing;
+                            const gridStartX = cellLeft + cellPadding + (totalAvailableWidth - gridWidth) / 2;
+                            const gridStartY = cellTop + cellPadding + (totalAvailableHeight - gridHeight) / 2;
+                            
+                            // Place nodes in grid
                             sortedNodes.forEach((node, index) => {
                                 const row = Math.floor(index / actualCols);
                                 const col = index % actualCols;
                                 
                                 if (node) {
-                                    node.x = gridStartX + col * gridSpacing + gridSpacing / 2;
-                                    node.y = gridStartY + row * gridSpacing + gridSpacing / 2;
+                                    node.x = gridStartX + col * uniformSpacing + uniformSpacing / 2;
+                                    node.y = gridStartY + row * uniformSpacing + uniformSpacing / 2;
                                 }
                             });
                         }
@@ -1226,8 +1258,9 @@
                     });
                     
                     // Fix any remaining overlaps by slightly adjusting positions
+                    // Always check for overlaps to ensure no nodes overlap
                     // Run multiple iterations to ensure no overlaps
-                    for (let iteration = 0; iteration < 5; iteration++) {
+                    for (let iteration = 0; iteration < 3; iteration++) {
                         let anyOverlap = false;
                         for (let i = 0; i < sortedNodes.length; i++) {
                             for (let j = i + 1; j < sortedNodes.length; j++) {
@@ -1259,8 +1292,8 @@
                                     node2.x = Math.max(minX, Math.min(maxX, node2.x));
                                     node2.y = Math.max(minY, Math.min(maxY, node2.y));
                                 }
+                                }
                             }
-                        }
                         if (!anyOverlap) break; // No more overlaps, stop iterating
                     }
                 }
@@ -1384,30 +1417,34 @@
             node.each(function(d) {
                 const nodeElement = d3.select(this);
                 
+                // Consistent node size for all
+                const nodeSize = 10;
+                const strokeWidth = 2;
+                
                 if (d.packaging === 'war') {
                     // Square for WAR files
                     nodeElement.append("rect")
-                        .attr("x", -12)
-                        .attr("y", -12)
-                        .attr("width", 24)
-                        .attr("height", 24)
+                        .attr("x", -nodeSize)
+                        .attr("y", -nodeSize)
+                        .attr("width", nodeSize * 2)
+                        .attr("height", nodeSize * 2)
                         .attr("fill", color(d.nodeGroup))
                         .attr("stroke", "#ff6b6b")
-                        .attr("stroke-width", 3);
+                        .attr("stroke-width", strokeWidth);
                 } else {
                     // Circle for JAR files (default)
                     nodeElement.append("circle")
-                        .attr("r", 12)
+                        .attr("r", nodeSize)
                         .attr("fill", color(d.nodeGroup))
                         .attr("stroke", "#4ecdc4")
-                        .attr("stroke-width", 2);
+                        .attr("stroke-width", strokeWidth);
                 }
             });
             
             node.append("text")
                 .attr("text-anchor", "middle")
-                .attr("dy", 35)  // Position even further below to avoid overlap
-                .style("font-size", "10px")
+                .attr("dy", 25)  // Consistent positioning
+                .style("font-size", "9px")  // Readable but compact
                 .style("font-weight", "500")
                 .text(d => d.name);
             
