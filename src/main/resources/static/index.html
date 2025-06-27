@@ -172,6 +172,11 @@
             overflow: visible;
         }
         
+        /* Force marker visibility */
+        .link[marker-end] {
+            marker-end: url(#arrowhead) !important;
+        }
+        
         .link.hidden {
             display: none;
         }
@@ -679,21 +684,31 @@
             
             svg.attr("width", width).attr("height", height);
             
-            // Create arrow marker
+            // Remove any existing defs to avoid duplicates
+            svg.selectAll("defs").remove();
+            
+            // Create arrow marker at root level with proper settings
             const defs = svg.append("defs");
-            defs.append("marker")
+            
+            // Remove any existing arrowhead marker
+            defs.selectAll("#arrowhead").remove();
+            
+            const marker = defs.append("marker")
                 .attr("id", "arrowhead")
-                .attr("viewBox", "-0 -5 10 10")
+                .attr("viewBox", "0 -5 10 10")
                 .attr("refX", 25)
                 .attr("refY", 0)
                 .attr("orient", "auto")
                 .attr("markerWidth", 8)
                 .attr("markerHeight", 8)
                 .attr("markerUnits", "userSpaceOnUse")
-                .append("path")
+                .attr("preserveAspectRatio", "none");
+                
+            marker.append("path")
                 .attr("d", "M 0,-5 L 10 ,0 L 0,5")
                 .attr("fill", "#999")
-                .style("stroke", "none");
+                .attr("stroke", "none")
+                .attr("class", "arrowhead-path");
             
             // Create zoom behavior with higher max scale for closer zoom
             zoom = d3.zoom()
@@ -1396,7 +1411,9 @@
             simulation.on("tick", () => {
                 try {
                     // Update links with smart routing
-                    link.attr("d", d => {
+                    link
+                        .attr("marker-end", "url(#arrowhead)") // Ensure marker is preserved
+                        .attr("d", d => {
                         try {
                             // Handle both object references and string IDs
                             const sourceNode = typeof d.source === 'object' ? d.source : data.nodes.find(n => n.id === d.source);
@@ -1747,13 +1764,32 @@
                     const dy = linkData.target.y - linkData.source.y;
                     const dr = Math.sqrt(dx * dx + dy * dy) * 0.8;
                     return `M${linkData.source.x},${linkData.source.y} Q${(linkData.source.x + linkData.target.x) / 2},${(linkData.source.y + linkData.target.y) / 2 + dr / 2} ${linkData.target.x},${linkData.target.y}`;
-                });
+                })
+                .attr("marker-end", "url(#arrowhead)"); // Ensure marker stays attached
         }
         
         function dragended(event, d) {
             // Keep position fixed
             d.fx = d.x;
             d.fy = d.y;
+            
+            // Force a complete redraw of all links to fix disappearing arrows
+            // This is a workaround for a browser rendering bug with SVG markers
+            d3.selectAll('.link').each(function() {
+                const link = d3.select(this);
+                const d = link.datum();
+                
+                // Get the current path data
+                const pathData = link.attr("d");
+                
+                // Force the browser to redraw by manipulating the DOM
+                link.style("display", "none");
+                link.node().offsetHeight; // Force reflow
+                link.style("display", null);
+                
+                // Re-apply the marker
+                link.attr("marker-end", "url(#arrowhead)");
+            });
         }
         
         
