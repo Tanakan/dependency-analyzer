@@ -2906,7 +2906,8 @@
                         const midY = distance > 0 ? (sourceNode.y + targetNode.y) / 2 - offset * dx / distance : (sourceNode.y + targetNode.y) / 2;
                         return `M${sourceNode.x},${sourceNode.y} Q${midX},${midY + dr / 2} ${targetNode.x},${targetNode.y}`;
                     }
-                });
+                })
+                .attr("marker-end", "url(#arrowhead)"); // Ensure markers stay attached during drag
         }
         
         function framesDragended(event, d) {
@@ -2923,6 +2924,20 @@
             
             // Update the repositoryBounds force to use new positions
             simulation.force("repositoryBounds").initialize(simulation.nodes());
+            
+            // Force redraw of all links to fix disappearing arrows
+            // This is the same workaround used in node dragging
+            d3.selectAll('.link').each(function() {
+                const link = d3.select(this);
+                
+                // Force the browser to redraw by manipulating the DOM
+                link.style("display", "none");
+                link.node().offsetHeight; // Force reflow
+                link.style("display", null);
+                
+                // Re-apply the marker
+                link.attr("marker-end", "url(#arrowhead)");
+            });
         }
         
         // Force update groups function
