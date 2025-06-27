@@ -14,6 +14,8 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.LoggerContext;
 
 import java.io.File;
 import java.io.IOException;
@@ -25,19 +27,61 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class DependencyAnalyzerCLI {
-    private static final Logger logger = LoggerFactory.getLogger(DependencyAnalyzerCLI.class);
+    private static final Logger logger;
     private static final ObjectMapper mapper = new ObjectMapper();
     
     private final MavenPomParser mavenParser = new MavenPomParser();
     private final GradleBuildParser gradleParser = new GradleBuildParser();
     
     static {
+        // Configure logging for CLI mode BEFORE logger initialization
+        configureLoggingLevel();
+        
+        // Initialize logger after configuration
+        logger = LoggerFactory.getLogger(DependencyAnalyzerCLI.class);
+        
         mapper.enable(SerializationFeature.INDENT_OUTPUT);
+    }
+    
+    private static void configureLoggingLevel() {
+        // Get log level from system property or environment variable
+        String logLevel = System.getProperty("logging.level.root");
+        if (logLevel == null) {
+            logLevel = System.getenv("LOGGING_LEVEL_ROOT");
+        }
+        if (logLevel == null) {
+            logLevel = "ERROR"; // Default to ERROR for CLI mode
+        }
+        
+        // Set the log level
+        LoggerContext loggerContext = (LoggerContext) LoggerFactory.getILoggerFactory();
+        ch.qos.logback.classic.Logger rootLogger = loggerContext.getLogger(Logger.ROOT_LOGGER_NAME);
+        
+        try {
+            Level level = Level.valueOf(logLevel.toUpperCase());
+            rootLogger.setLevel(level);
+            
+            // Also set for our package
+            String packageLogLevel = System.getProperty("logging.level.com.example.dependencies.analyzer");
+            if (packageLogLevel == null) {
+                packageLogLevel = System.getenv("LOGGING_LEVEL_COM_EXAMPLE_DEPENDENCIES_ANALYZER");
+            }
+            if (packageLogLevel != null) {
+                ch.qos.logback.classic.Logger packageLogger = loggerContext.getLogger("com.example.dependencies.analyzer");
+                packageLogger.setLevel(Level.valueOf(packageLogLevel.toUpperCase()));
+            }
+        } catch (IllegalArgumentException e) {
+            System.err.println("Invalid log level: " + logLevel + ". Using ERROR level.");
+            rootLogger.setLevel(Level.ERROR);
+        }
     }
     
     public static void main(String[] args) {
         if (args.length != 1) {
             System.err.println("Usage: java -jar dependencies-analyzer.jar <directory-path>");
+            System.err.println("Options:");
+            System.err.println("  -Dlogging.level.root=<LEVEL>  Set root log level (TRACE, DEBUG, INFO, WARN, ERROR, OFF)");
+            System.err.println("  -Dlogging.level.com.example.dependencies.analyzer=<LEVEL>  Set package log level");
             System.exit(1);
         }
         
