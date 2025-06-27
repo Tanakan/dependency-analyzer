@@ -885,13 +885,13 @@
             // Apply grid snapping to avoid overlaps
             // Calculate dynamic cell size based on the largest repository
             const maxNodesInRepo = Math.max(...Object.values(projectsByRepo).map(nodes => nodes.length));
-            const baseWidth = 300;
-            const baseHeight = 250;
-            const nodeSpacing = 80; // Space needed per node
+            const baseWidth = 350;
+            const baseHeight = 300;
+            const nodeSpacing = 120; // Space needed per node
             
-            // Dynamic cell dimensions based on content
-            const cellWidth = Math.max(baseWidth, Math.min(600, baseWidth + Math.sqrt(maxNodesInRepo - 1) * 40));
-            const cellHeight = Math.max(baseHeight, Math.min(500, baseHeight + Math.sqrt(maxNodesInRepo - 1) * 30));
+            // Dynamic cell dimensions based on content - more generous sizing
+            const cellWidth = Math.max(baseWidth, Math.min(800, baseWidth + Math.sqrt(maxNodesInRepo) * 60));
+            const cellHeight = Math.max(baseHeight, Math.min(700, baseHeight + Math.sqrt(maxNodesInRepo) * 50));
             
             const cellMargin = 25;
             const minMargin = 50;
@@ -1105,9 +1105,9 @@
                 
                 // Set initial positions with no overlap using grid layout
                 const nodeRadius = 15; // Node visual radius
-                const labelHeight = 35; // Space needed for text below node
-                const minNodeSpacing = 80; // Increased spacing to account for node + label
-                const cellPadding = 50; // Increased padding from cell edges
+                const labelHeight = 40; // Space needed for text below node
+                const minNodeSpacing = 120; // Much larger spacing to prevent any overlap
+                const cellPadding = 60; // Increased padding from cell edges
                 
                 if (nodes.length === 1 && nodes[0]) {
                     nodes[0].x = cellCenterX;
@@ -1137,7 +1137,7 @@
                         }
                         
                         if (nodes.length > 1) {
-                            const radius = Math.min(availableWidth, availableHeight) * 0.35;
+                            const radius = Math.min(availableWidth, availableHeight) * 0.3; // Smaller radius for more space
                             const angleStep = nodes.length > 1 ? (2 * Math.PI) / (nodes.length - 1) : 0;
                             
                             for (let i = 1; i < sortedNodes.length; i++) {
@@ -1189,7 +1189,7 @@
                             }
                         } else {
                             // Use grid layout for very large repositories
-                            const gridSpacing = minNodeSpacing;
+                            const gridSpacing = minNodeSpacing * 1.2; // Even more space for grid layout
                             const nodesPerRow = Math.floor(availableWidth / gridSpacing);
                             const nodesPerCol = Math.floor(availableHeight / gridSpacing);
                             
@@ -1226,36 +1226,42 @@
                     });
                     
                     // Fix any remaining overlaps by slightly adjusting positions
-                    for (let i = 0; i < sortedNodes.length; i++) {
-                        for (let j = i + 1; j < sortedNodes.length; j++) {
+                    // Run multiple iterations to ensure no overlaps
+                    for (let iteration = 0; iteration < 5; iteration++) {
+                        let anyOverlap = false;
+                        for (let i = 0; i < sortedNodes.length; i++) {
+                            for (let j = i + 1; j < sortedNodes.length; j++) {
                             const node1 = sortedNodes[i];
                             const node2 = sortedNodes[j];
                             const dx = node2.x - node1.x;
                             const dy = node2.y - node1.y;
                             const distance = Math.sqrt(dx * dx + dy * dy);
                             
-                            if (distance < minNodeSpacing) {
-                                // Nodes are too close, push them apart
-                                const angle = Math.atan2(dy, dx);
-                                const pushDistance = (minNodeSpacing - distance) / 2 + 1;
-                                
-                                node1.x -= Math.cos(angle) * pushDistance;
-                                node1.y -= Math.sin(angle) * pushDistance;
-                                node2.x += Math.cos(angle) * pushDistance;
-                                node2.y += Math.sin(angle) * pushDistance;
-                                
-                                // Keep within bounds
-                                const minX = cellLeft + cellPadding;
-                                const maxX = cellLeft + cellWidth - cellPadding;
-                                const minY = cellTop + cellPadding;
-                                const maxY = cellTop + cellHeight - cellPadding;
-                                
-                                node1.x = Math.max(minX, Math.min(maxX, node1.x));
-                                node1.y = Math.max(minY, Math.min(maxY, node1.y));
-                                node2.x = Math.max(minX, Math.min(maxX, node2.x));
-                                node2.y = Math.max(minY, Math.min(maxY, node2.y));
+                                if (distance < minNodeSpacing) {
+                                    anyOverlap = true;
+                                    // Nodes are too close, push them apart
+                                    const angle = Math.atan2(dy, dx);
+                                    const pushDistance = (minNodeSpacing - distance) / 2 + 5; // More aggressive push
+                                    
+                                    node1.x -= Math.cos(angle) * pushDistance;
+                                    node1.y -= Math.sin(angle) * pushDistance;
+                                    node2.x += Math.cos(angle) * pushDistance;
+                                    node2.y += Math.sin(angle) * pushDistance;
+                                    
+                                    // Keep within bounds
+                                    const minX = cellLeft + cellPadding;
+                                    const maxX = cellLeft + cellWidth - cellPadding;
+                                    const minY = cellTop + cellPadding;
+                                    const maxY = cellTop + cellHeight - cellPadding;
+                                    
+                                    node1.x = Math.max(minX, Math.min(maxX, node1.x));
+                                    node1.y = Math.max(minY, Math.min(maxY, node1.y));
+                                    node2.x = Math.max(minX, Math.min(maxX, node2.x));
+                                    node2.y = Math.max(minY, Math.min(maxY, node2.y));
+                                }
                             }
                         }
+                        if (!anyOverlap) break; // No more overlaps, stop iterating
                     }
                 }
             });
@@ -1400,8 +1406,9 @@
             
             node.append("text")
                 .attr("text-anchor", "middle")
-                .attr("dy", 30)  // Position further below the node to avoid overlap
-                .style("font-size", "11px")
+                .attr("dy", 35)  // Position even further below to avoid overlap
+                .style("font-size", "10px")
+                .style("font-weight", "500")
                 .text(d => d.name);
             
             // Add packaging type label with background
