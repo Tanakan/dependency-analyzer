@@ -1,0 +1,115 @@
+.sidebar {
+  width: 300px;
+  height: 100%;
+  background-color: white;
+  border-right: 1px solid #ddd;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+.sidebar-header {
+  padding: 15px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.sidebar-header h3 {
+  margin: 0 0 10px 0;
+  font-size: 18px;
+  color: #333;
+}
+
+.stats {
+  font-size: 13px;
+  color: #666;
+}
+
+.repository-list {
+  padding: 10px;
+}
+
+.repository-group {
+  margin-bottom: 10px;
+  background-color: #f5f5f5;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.repository-header {
+  padding: 12px;
+  background-color: #e9ecef;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  user-select: none;
+}
+
+.repository-header:hover {
+  background-color: #dee2e6;
+}
+
+.repository-header.selected {
+  background-color: #007bff;
+  color: white;
+}
+
+.chevron {
+  transition: transform 0.2s;
+  margin-right: 8px;
+  font-size: 12px;
+}
+
+.chevron.collapsed {
+  transform: rotate(-90deg);
+}
+
+.project-count {
+  font-size: 12px;
+  background-color: rgba(0, 0, 0, 0.1);
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+.repository-header.selected .project-count {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+.project-list {
+  padding: 8px;
+}
+
+.project-item {
+  padding: 8px 12px;
+  margin: 4px 0;
+  background-color: white;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border-left: 3px solid transparent;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.project-item:hover {
+  background-color: #f8f9fa;
+  transform: translateX(2px);
+}
+
+.project-item.selected {
+  background-color: #007bff;
+  color: white;
+  transform: translateX(4px);
+}
+
+.project-name {
+  font-weight: 500;
+}
+
+.project-version {
+  font-size: 11px;
+  opacity: 0.7;
+}

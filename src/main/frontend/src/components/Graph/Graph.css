@@ -1,0 +1,44 @@
+.graph-container {
+  flex: 1;
+  position: relative;
+  background-color: #fafafa;
+  overflow: hidden;
+}
+
+.graph-container svg {
+  width: 100%;
+  height: 100%;
+}
+
+.node {
+  cursor: move;
+  transition: opacity 0.2s;
+}
+
+.node.highlighted {
+  opacity: 1 !important;
+}
+
+.node.dimmed {
+  opacity: 0.3;
+}
+
+.node.repo-highlighted {
+  opacity: 1 !important;
+}
+
+.node.repo-dimmed {
+  opacity: 0.2;
+}
+
+.link {
+  stroke: #999;
+  stroke-opacity: 0.6;
+  stroke-width: 2px;
+  fill: none;
+}
+
+.repo-frames rect {
+  fill-opacity: 0.1;
+  stroke-opacity: 0.5;
+}
