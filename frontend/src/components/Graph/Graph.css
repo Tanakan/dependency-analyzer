@@ -131,6 +131,17 @@
   border-color: #d1d5db;
 }
 
+/* Custom zoom controls */
+.react-flow__controls-zoomin,
+.react-flow__controls-zoomout {
+  position: relative;
+}
+
+/* Smooth zoom transitions */
+.react-flow__viewport {
+  transition: transform 0.2s ease-out;
+}
+
 /* React Flow minimap styling */
 .react-flow__minimap {
   background: white;

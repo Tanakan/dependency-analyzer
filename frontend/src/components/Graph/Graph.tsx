@@ -2,7 +2,6 @@ import React, { useEffect, useCallback } from 'react';
 import ReactFlow, {
   Node as FlowNode,
   Edge,
-  Controls,
   Background,
   MiniMap,
   useNodesState,
@@ -12,6 +11,8 @@ import ReactFlow, {
   Handle,
   NodeProps,
   BackgroundVariant,
+  useReactFlow,
+  Panel,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { GraphData, Node } from '../../types';
@@ -112,6 +113,117 @@ const nodeTypes = {
   group: GroupNode,
 };
 
+// Custom zoom controls component
+const CustomZoomControls: React.FC = () => {
+  const { zoomIn, zoomOut, fitView } = useReactFlow();
+  
+  const handleZoomIn = () => {
+    zoomIn({ duration: 200 });
+  };
+  
+  const handleZoomOut = () => {
+    zoomOut({ duration: 200 });
+  };
+  
+  const handleFitView = () => {
+    fitView({ duration: 400, padding: 0.2 });
+  };
+  
+  return (
+    <Panel position="top-right" style={{ marginTop: '10px', marginRight: '10px' }}>
+      <div style={{ 
+        display: 'flex', 
+        flexDirection: 'column', 
+        gap: '2px',
+        background: 'white',
+        border: '1px solid #e5e7eb',
+        borderRadius: '6px',
+        padding: '4px',
+        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+      }}>
+        <button
+          onClick={handleZoomIn}
+          style={{
+            background: 'white',
+            border: '1px solid #e5e7eb',
+            borderRadius: '4px',
+            width: '32px',
+            height: '32px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '16px',
+            transition: 'all 0.2s ease',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = '#f3f4f6';
+            e.currentTarget.style.borderColor = '#d1d5db';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'white';
+            e.currentTarget.style.borderColor = '#e5e7eb';
+          }}
+        >
+          +
+        </button>
+        <button
+          onClick={handleZoomOut}
+          style={{
+            background: 'white',
+            border: '1px solid #e5e7eb',
+            borderRadius: '4px',
+            width: '32px',
+            height: '32px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '16px',
+            transition: 'all 0.2s ease',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = '#f3f4f6';
+            e.currentTarget.style.borderColor = '#d1d5db';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'white';
+            e.currentTarget.style.borderColor = '#e5e7eb';
+          }}
+        >
+          −
+        </button>
+        <button
+          onClick={handleFitView}
+          style={{
+            background: 'white',
+            border: '1px solid #e5e7eb',
+            borderRadius: '4px',
+            width: '32px',
+            height: '32px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '12px',
+            transition: 'all 0.2s ease',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = '#f3f4f6';
+            e.currentTarget.style.borderColor = '#d1d5db';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'white';
+            e.currentTarget.style.borderColor = '#e5e7eb';
+          }}
+        >
+          ⊡
+        </button>
+      </div>
+    </Panel>
+  );
+};
+
 interface GraphProps {
   data: GraphData | null;
   selectedNode: string | null;
@@ -119,7 +231,7 @@ interface GraphProps {
   onNodeSelect?: (nodeId: string | null) => void;
 }
 
-export const Graph: React.FC<GraphProps> = ({ data, selectedNode, selectedRepository, onNodeSelect }) => {
+const GraphContent: React.FC<GraphProps> = ({ data, selectedNode, selectedRepository, onNodeSelect }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
@@ -550,10 +662,7 @@ export const Graph: React.FC<GraphProps> = ({ data, selectedNode, selectedReposi
         panOnDrag={true}
       >
         <Background variant={BackgroundVariant.Dots} color="#e5e7eb" gap={20} size={1} />
-        <Controls 
-          showInteractive={false}
-          position="top-right"
-        />
+        <CustomZoomControls />
         <MiniMap 
           nodeColor={(node) => {
             if (node.type === 'group') {
@@ -569,3 +678,5 @@ export const Graph: React.FC<GraphProps> = ({ data, selectedNode, selectedReposi
     </div>
   );
 };
+
+export const Graph = GraphContent;
