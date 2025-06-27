@@ -163,9 +163,7 @@ public class DependencyAnalyzer {
         String groupId = "unknown.group";
         if (projectDir.getParent() != null) {
             String parentName = projectDir.getParent().getFileName().toString();
-            if (!parentName.equals("test-projects")) {
-                groupId = "com.example." + parentName;
-            }
+            groupId = "com.example." + parentName;
         }
         
         Project project = new Project(groupId, artifactId, "unknown", buildFile, type);
@@ -252,37 +250,25 @@ public class DependencyAnalyzer {
     
     private String determineRepository(Project project) {
         Path projectPath = project.getProjectPath();
-        if (projectPath == null) return "test-projects";
+        if (projectPath == null) return "unknown";
         
         try {
-            // Get absolute path and convert to string
-            String fullPath = projectPath.toAbsolutePath().toString().replace('\\', '/');
-            
-            // Find test-projects in the path
-            int testProjectsIndex = fullPath.indexOf("test-projects/");
-            if (testProjectsIndex >= 0) {
-                // Extract the part after test-projects/
-                String afterTestProjects = fullPath.substring(testProjectsIndex + "test-projects/".length());
-                
-                // Extract repository name (first directory after test-projects/)
-                int nextSlash = afterTestProjects.indexOf('/');
-                if (nextSlash > 0) {
-                    return afterTestProjects.substring(0, nextSlash);
-                } else if (!afterTestProjects.isEmpty()) {
-                    return afterTestProjects;
-                }
+            // Find the git repository root
+            Path currentPath = projectPath;
+            while (currentPath != null && !Files.exists(currentPath.resolve(".git"))) {
+                currentPath = currentPath.getParent();
             }
             
-            // If path doesn't contain test-projects, try to extract last two directories
-            String[] parts = fullPath.split("/");
-            if (parts.length >= 2 && parts[parts.length - 2].equals("test-projects")) {
-                return parts[parts.length - 1];
+            if (currentPath != null) {
+                // Return the repository directory name
+                return currentPath.getFileName().toString();
             }
             
-            return "test-projects";
+            // If no git repository found, use the project directory name
+            return projectPath.getFileName().toString();
         } catch (Exception e) {
             logger.warn("Failed to determine repository for project: " + project.getArtifactId(), e);
-            return "test-projects";
+            return "unknown";
         }
     }
 }

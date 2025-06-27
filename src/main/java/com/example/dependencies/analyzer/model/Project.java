@@ -1,5 +1,6 @@
 package com.example.dependencies.analyzer.model;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -67,31 +68,18 @@ public class Project {
         if (projectPath == null) return "unknown";
         
         try {
-            // Get absolute path and convert to string
-            String fullPath = projectPath.toAbsolutePath().toString().replace('\\', '/');
-            
-            // Find test-projects in the path
-            int testProjectsIndex = fullPath.indexOf("test-projects/");
-            if (testProjectsIndex >= 0) {
-                // Extract the part after test-projects/
-                String afterTestProjects = fullPath.substring(testProjectsIndex + "test-projects/".length());
-                
-                // Extract repository name (first directory after test-projects/)
-                int nextSlash = afterTestProjects.indexOf('/');
-                if (nextSlash > 0) {
-                    return afterTestProjects.substring(0, nextSlash);
-                } else if (!afterTestProjects.isEmpty()) {
-                    return afterTestProjects;
+            // Find the git repository root
+            Path currentPath = projectPath;
+            while (currentPath != null) {
+                if (Files.exists(currentPath.resolve(".git"))) {
+                    // Return the repository directory name
+                    return currentPath.getFileName().toString();
                 }
+                currentPath = currentPath.getParent();
             }
             
-            // If path doesn't contain test-projects, try to extract last two directories
-            String[] parts = fullPath.split("/");
-            if (parts.length >= 2 && parts[parts.length - 2].equals("test-projects")) {
-                return parts[parts.length - 1];
-            }
-            
-            return "unknown";
+            // If no git repository found, use the project directory name
+            return projectPath.getFileName().toString();
         } catch (Exception e) {
             return "unknown";
         }

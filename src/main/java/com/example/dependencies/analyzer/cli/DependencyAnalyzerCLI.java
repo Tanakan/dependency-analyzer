@@ -248,9 +248,7 @@ public class DependencyAnalyzerCLI {
         String groupId = "unknown.group";
         if (projectDir.getParent() != null) {
             String parentName = projectDir.getParent().getFileName().toString();
-            if (!parentName.equals("test-projects")) {
-                groupId = "com.example." + parentName;
-            }
+            groupId = "com.example." + parentName;
         }
         
         Project project = new Project(groupId, artifactId, "unknown", buildFile, type);
@@ -567,15 +565,14 @@ public class DependencyAnalyzerCLI {
     
     private boolean isGenericDirectoryName(String dirName) {
         Set<String> genericDirs = Set.of(
-            "test-projects", "test-project", "test", "demo", "sample", "examples", 
+            "test", "demo", "sample", "examples", 
             "projects", "project", "repos", "repositories", "repository",
             "workspace", "workspaces", "src", "source", "sources"
         );
         
-        // Also check for patterns like "test-*", "demo-*", "sample-*"
+        // Also check for patterns like "demo-*", "sample-*"
         String lowerDirName = dirName.toLowerCase();
-        if (lowerDirName.startsWith("test-") || 
-            lowerDirName.startsWith("demo-") || 
+        if (lowerDirName.startsWith("demo-") || 
             lowerDirName.startsWith("sample-") ||
             lowerDirName.startsWith("example-")) {
             return true;

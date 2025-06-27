@@ -37,7 +37,9 @@ public class AnalysisDataInitializer implements CommandLineRunner {
     private void runAnalysis() {
         try {
             DependencyAnalyzer analyzer = new DependencyAnalyzer();
-            analyzer.analyze("test-projects");
+            // Get the directory from system property or use current directory
+            String directory = System.getProperty("analysis.directory", ".");
+            analyzer.analyze(directory);
             logger.info("Dependency analysis completed successfully");
         } catch (Exception e) {
             logger.error("Failed to run dependency analysis", e);
