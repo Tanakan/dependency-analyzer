@@ -165,7 +165,11 @@
             stroke-opacity: 0.4;
             stroke-width: 2px;
             stroke-linecap: round;
-            marker-end: url(#arrowhead);
+        }
+        
+        /* Ensure markers are visible */
+        marker#arrowhead {
+            overflow: visible;
         }
         
         .link.hidden {
@@ -676,7 +680,8 @@
             svg.attr("width", width).attr("height", height);
             
             // Create arrow marker
-            svg.append("defs").append("marker")
+            const defs = svg.append("defs");
+            defs.append("marker")
                 .attr("id", "arrowhead")
                 .attr("viewBox", "-0 -5 10 10")
                 .attr("refX", 25)
@@ -684,9 +689,11 @@
                 .attr("orient", "auto")
                 .attr("markerWidth", 8)
                 .attr("markerHeight", 8)
+                .attr("markerUnits", "userSpaceOnUse")
                 .append("path")
                 .attr("d", "M 0,-5 L 10 ,0 L 0,5")
-                .attr("fill", "#999");
+                .attr("fill", "#999")
+                .style("stroke", "none");
             
             // Create zoom behavior with higher max scale for closer zoom
             zoom = d3.zoom()
@@ -1263,6 +1270,7 @@
                 .enter().append("path")
                 .attr("class", "link")
                 .attr("fill", "none")
+                .attr("marker-end", "url(#arrowhead)")
                 .attr("d", d => {
                     const sourceNode = typeof d.source === 'object' ? d.source : data.nodes.find(n => n.id === d.source);
                     const targetNode = typeof d.target === 'object' ? d.target : data.nodes.find(n => n.id === d.target);
