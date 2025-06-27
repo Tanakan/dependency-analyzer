@@ -142,6 +142,16 @@
   transition: transform 0.2s ease-out;
 }
 
+/* Reduce wheel zoom sensitivity */
+.react-flow__renderer {
+  will-change: transform;
+}
+
+/* Override React Flow's zoom behavior */
+.react-flow.wheel-zoom .react-flow__viewport {
+  transition: transform 0.1s linear !important;
+}
+
 /* React Flow minimap styling */
 .react-flow__minimap {
   background: white;

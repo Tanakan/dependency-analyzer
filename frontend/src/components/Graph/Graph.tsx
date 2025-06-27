@@ -13,6 +13,7 @@ import ReactFlow, {
   BackgroundVariant,
   useReactFlow,
   Panel,
+  ReactFlowProvider,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { GraphData, Node } from '../../types';
@@ -91,15 +92,26 @@ const CustomNode: React.FC<NodeProps> = ({ data }) => {
 // Custom group node component for repository frames
 const GroupNode: React.FC<NodeProps> = ({ data }) => {
   return (
-    <div style={{ padding: '10px 20px', width: '100%', height: '100%' }}>
+    <div style={{ 
+      padding: '10px 15px', 
+      width: '100%', 
+      height: '100%',
+      position: 'relative',
+    }}>
       <div style={{
-        fontSize: '18px',
+        position: 'absolute',
+        top: '-18px',
+        left: '15px',
+        backgroundColor: '#374151',
+        color: '#ffffff',
+        padding: '4px 16px',
+        borderRadius: '6px',
+        fontSize: '16px',
         fontWeight: '700',
-        color: data.color || '#374151',
-        marginBottom: '10px',
         textAlign: 'left',
-        letterSpacing: '0.5px',
-        textTransform: 'uppercase',
+        letterSpacing: '0.3px',
+        boxShadow: '0 2px 6px rgba(0,0,0,0.25)',
+        zIndex: 1,
         whiteSpace: 'nowrap',
       }}>
         {data.label}
@@ -234,6 +246,36 @@ interface GraphProps {
 const GraphContent: React.FC<GraphProps> = ({ data, selectedNode, selectedRepository, onNodeSelect }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const { setViewport, getViewport } = useReactFlow();
+  
+  // Custom wheel handler for smoother zoom
+  useEffect(() => {
+    const handleWheel = (e: Event) => {
+      const wheelEvent = e as WheelEvent;
+      if (wheelEvent.ctrlKey || wheelEvent.metaKey) {
+        wheelEvent.preventDefault();
+        const viewport = getViewport();
+        const zoomSpeed = 0.002; // Very small zoom increments
+        const delta = -wheelEvent.deltaY * zoomSpeed;
+        const newZoom = Math.max(0.2, Math.min(3, viewport.zoom + delta));
+        
+        setViewport({
+          x: viewport.x,
+          y: viewport.y,
+          zoom: newZoom,
+        });
+      }
+    };
+    
+    const container = document.querySelector('.react-flow');
+    if (container) {
+      container.addEventListener('wheel', handleWheel as EventListener, { passive: false });
+      return () => {
+        container.removeEventListener('wheel', handleWheel as EventListener);
+      };
+    }
+  }, [getViewport, setViewport]);
+  
 
   // Custom node change handler with collision detection
   const handleNodesChange = useCallback((changes: any[]) => {
@@ -250,7 +292,7 @@ const GraphContent: React.FC<GraphProps> = ({ data, selectedNode, selectedReposi
           
           const nodeWidth = 150;
           const nodeHeight = 80;
-          const minDistance = 10; // Minimum gap between nodes
+          const minDistance = 5; // Smaller minimum gap between nodes
           
           let newX = change.position.x;
           let newY = change.position.y;
@@ -322,52 +364,144 @@ const GraphContent: React.FC<GraphProps> = ({ data, selectedNode, selectedReposi
       }
     });
 
-    // Calculate grid layout for repositories (only non-empty ones)
-    const repos = Array.from(nodesByRepo.entries()).filter(([, nodes]) => nodes.length > 0);
-    const repoSpacing = 150; // Large spacing between repos
-    const nodePadding = 60; // Padding around nodes
-    const nodeWidth = 150; // Fixed node width for calculations
-    const nodeHeight = 80; // Fixed node height including text
-    const nodeSpacing = 50; // Guaranteed space between nodes
-
-    // First pass: calculate all repository dimensions
-    const repoDimensions = new Map<string, { width: number; height: number; nodesPerRow: number }>();
-    
-    repos.forEach(([repoName, repoNodes]) => {
-      // Dynamic calculation based on number of nodes - more conservative to prevent overlap
-      let nodesPerRow;
-      if (repoNodes.length <= 2) {
-        nodesPerRow = repoNodes.length; // Single row for 1-2 nodes
-      } else if (repoNodes.length <= 4) {
-        nodesPerRow = 2; // 2x2 grid for 3-4 nodes
-      } else if (repoNodes.length <= 9) {
-        nodesPerRow = 3; // 3x3 grid for 5-9 nodes
-      } else if (repoNodes.length <= 16) {
-        nodesPerRow = 4; // 4x4 grid for 10-16 nodes
-      } else {
-        nodesPerRow = 5; // Max 5 per row for large repos
+    // Calculate dependency levels for hierarchical layout
+    const calculateNodeLevels = (nodes: Node[], links: any[]) => {
+      const levels = new Map<string, number>();
+      const inDegree = new Map<string, number>();
+      const graph = new Map<string, string[]>();
+      
+      // Initialize
+      nodes.forEach(node => {
+        inDegree.set(node.id, 0);
+        graph.set(node.id, []);
+      });
+      
+      // Build graph and calculate in-degrees
+      links.forEach(link => {
+        const sourceId = typeof link.source === 'string' ? link.source : (link.source as any).id;
+        const targetId = typeof link.target === 'string' ? link.target : (link.target as any).id;
+        
+        if (!pomNodeIds.has(sourceId) && !pomNodeIds.has(targetId)) {
+          graph.get(sourceId)?.push(targetId);
+          inDegree.set(targetId, (inDegree.get(targetId) || 0) + 1);
+        }
+      });
+      
+      // Topological sort with level assignment
+      const queue: string[] = [];
+      nodes.forEach(node => {
+        if (inDegree.get(node.id) === 0) {
+          queue.push(node.id);
+          levels.set(node.id, 0);
+        }
+      });
+      
+      while (queue.length > 0) {
+        const current = queue.shift()!;
+        const currentLevel = levels.get(current) || 0;
+        
+        graph.get(current)?.forEach(neighbor => {
+          const newInDegree = (inDegree.get(neighbor) || 0) - 1;
+          inDegree.set(neighbor, newInDegree);
+          
+          if (newInDegree === 0) {
+            queue.push(neighbor);
+            levels.set(neighbor, currentLevel + 1);
+          }
+        });
       }
       
-      const numRows = Math.ceil(repoNodes.length / nodesPerRow);
+      // Assign levels to remaining nodes (in case of cycles)
+      nodes.forEach(node => {
+        if (!levels.has(node.id)) {
+          levels.set(node.id, 0);
+        }
+      });
       
-      // Calculate width based on content and repository name length
-      const contentWidth = nodePadding * 2 + nodesPerRow * nodeWidth + (nodesPerRow - 1) * nodeSpacing;
-      // Estimate text width (18px font * 0.7 average char width * uppercase factor 1.1)
-      const nameWidth = repoName.length * 18 * 0.7 * 1.1 + nodePadding * 2;
-      const repoWidth = Math.max(contentWidth, nameWidth);
+      return levels;
+    };
+
+    // Calculate grid layout for repositories (only non-empty ones)
+    const repos = Array.from(nodesByRepo.entries()).filter(([, nodes]) => nodes.length > 0);
+    const repoSpacing = 50; // Reduced spacing between repos
+    const nodePadding = 30; // Reduced padding around nodes
+    const nodeWidth = 150; // Fixed node width for calculations
+    const nodeHeight = 80; // Fixed node height including text
+    const nodeHorizontalSpacing = 40; // Reduced horizontal space between nodes
+    const nodeVerticalSpacing = 60; // Reduced vertical space between levels
+
+    // Calculate levels for all nodes
+    const allNodes = repos.flatMap(([, nodes]) => nodes);
+    const nodeLevels = calculateNodeLevels(allNodes, data.links);
+
+    // First pass: calculate all repository dimensions with hierarchical layout
+    const repoDimensions = new Map<string, { width: number; height: number; nodeLayout: Map<string, {x: number, y: number}> }>();
+    
+    repos.forEach(([repoName, repoNodes]) => {
+      // Group nodes by level within this repository
+      const levelGroups = new Map<number, Node[]>();
+      let maxLevel = 0;
       
-      const repoHeight = nodePadding * 2 + 60 + numRows * nodeHeight + (numRows - 1) * nodeSpacing; // +60 for title with more space
+      repoNodes.forEach(node => {
+        const level = nodeLevels.get(node.id) || 0;
+        maxLevel = Math.max(maxLevel, level);
+        if (!levelGroups.has(level)) {
+          levelGroups.set(level, []);
+        }
+        levelGroups.get(level)!.push(node);
+      });
       
-      repoDimensions.set(repoName, { width: repoWidth, height: repoHeight, nodesPerRow });
+      // Calculate positions for nodes in each level
+      const nodeLayout = new Map<string, {x: number, y: number}>();
+      let maxWidth = 0;
+      
+      for (let level = 0; level <= maxLevel; level++) {
+        const nodesAtLevel = levelGroups.get(level) || [];
+        const levelWidth = nodesAtLevel.length * nodeWidth + (nodesAtLevel.length - 1) * nodeHorizontalSpacing;
+        maxWidth = Math.max(maxWidth, levelWidth);
+        
+        // Center nodes at this level
+        const startX = nodePadding + (maxWidth - levelWidth) / 2;
+        
+        nodesAtLevel.forEach((node, index) => {
+          const x = startX + index * (nodeWidth + nodeHorizontalSpacing);
+          const y = nodePadding + 30 + level * (nodeHeight + nodeVerticalSpacing); // +30 for title space
+          nodeLayout.set(node.id, { x, y });
+        });
+      }
+      
+      // Calculate repository dimensions
+      const repoWidth = Math.max(
+        maxWidth + nodePadding * 2,
+        repoName.length * 18 * 0.7 * 1.1 + nodePadding * 2 // Text width estimation
+      );
+      const repoHeight = nodePadding * 2 + 30 + (maxLevel + 1) * nodeHeight + maxLevel * nodeVerticalSpacing;
+      
+      repoDimensions.set(repoName, { width: repoWidth, height: repoHeight, nodeLayout });
     });
 
     // Second pass: calculate flexible grid layout
     const flowNodes: FlowNode[] = [];
     const nodePositions = new Map<string, { x: number; y: number }>();
     
-    // Dynamic column calculation based on total width
-    const sortedRepos = repos.sort((a, b) => b[1].length - a[1].length); // Sort by node count
-    const maxWidth = 2000; // Maximum viewport width
+    // Sort repositories by total dependency count (repos with more dependencies first)
+    const repoDepCount = new Map<string, number>();
+    repos.forEach(([repoName, repoNodes]) => {
+      let depCount = 0;
+      repoNodes.forEach(node => {
+        data.links.forEach(link => {
+          const sourceId = typeof link.source === 'string' ? link.source : (link.source as any).id;
+          const targetId = typeof link.target === 'string' ? link.target : (link.target as any).id;
+          if (sourceId === node.id || targetId === node.id) {
+            depCount++;
+          }
+        });
+      });
+      repoDepCount.set(repoName, depCount);
+    });
+    
+    const sortedRepos = repos.sort((a, b) => (repoDepCount.get(b[0]) || 0) - (repoDepCount.get(a[0]) || 0));
+    const maxWidth = 1800; // Reduced maximum viewport width for more compact layout
     
     let currentX = 0;
     let currentY = 0;
@@ -398,30 +532,27 @@ const GraphContent: React.FC<GraphProps> = ({ data, selectedNode, selectedReposi
         style: {
           width: dimensions.width,
           height: dimensions.height,
-          backgroundColor: 'rgba(240, 240, 240, 0.5)',
-          border: '2px dashed #9ca3af',
-          borderRadius: '8px',
+          backgroundColor: 'rgba(243, 244, 246, 0.5)',
+          border: '2px solid #9ca3af',
+          borderRadius: '16px',
+          boxShadow: '0 8px 16px rgba(0, 0, 0, 0.08)',
         },
         draggable: false,
         connectable: false,
         selectable: false,
       });
 
-      // Position nodes within repository
-      repoNodes.forEach((node, nodeIndex) => {
-        const nodeCol = nodeIndex % dimensions.nodesPerRow;
-        const nodeRow = Math.floor(nodeIndex / dimensions.nodesPerRow);
-        // Use relative position for nodes within groups with guaranteed spacing
-        const x = nodePadding + nodeCol * (nodeWidth + nodeSpacing);
-        const y = nodePadding + 60 + nodeRow * (nodeHeight + nodeSpacing); // +60 for title space
+      // Position nodes within repository using hierarchical layout
+      repoNodes.forEach((node) => {
+        const pos = dimensions.nodeLayout.get(node.id)!;
 
         // Store absolute position for edge routing
-        nodePositions.set(node.id, { x: currentX + x, y: currentY + y });
+        nodePositions.set(node.id, { x: currentX + pos.x, y: currentY + pos.y });
 
         flowNodes.push({
           id: node.id,
           type: 'custom',
-          position: { x, y }, // Relative position within parent
+          position: { x: pos.x, y: pos.y }, // Relative position within parent
           data: {
             label: node.name,
             version: node.version,
@@ -654,12 +785,13 @@ const GraphContent: React.FC<GraphProps> = ({ data, selectedNode, selectedReposi
         preventScrolling={false}
         snapToGrid={true}
         snapGrid={[10, 10]}
-        zoomOnScroll={true}
+        zoomOnScroll={false}
         zoomOnPinch={true}
         zoomOnDoubleClick={true}
         panOnScroll={false}
         panOnScrollSpeed={0.5}
         panOnDrag={true}
+        zoomActivationKeyCode={['Control', 'Meta']}
       >
         <Background variant={BackgroundVariant.Dots} color="#e5e7eb" gap={20} size={1} />
         <CustomZoomControls />
@@ -679,4 +811,16 @@ const GraphContent: React.FC<GraphProps> = ({ data, selectedNode, selectedReposi
   );
 };
 
-export const Graph = GraphContent;
+
+// Wrapper with ReactFlowProvider for zoom control
+const GraphWithProvider: React.FC<GraphProps> = (props) => {
+  return (
+    <ReactFlowProvider>
+      <div style={{ width: '100%', height: '100%' }}>
+        <GraphContent {...props} />
+      </div>
+    </ReactFlowProvider>
+  );
+};
+
+export const Graph = GraphWithProvider;
