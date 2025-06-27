@@ -883,8 +883,16 @@
             }
             
             // Apply grid snapping to avoid overlaps
-            const cellWidth = 350;
-            const cellHeight = 280;
+            // Calculate dynamic cell size based on the largest repository
+            const maxNodesInRepo = Math.max(...Object.values(projectsByRepo).map(nodes => nodes.length));
+            const baseWidth = 300;
+            const baseHeight = 250;
+            const nodeSpacing = 80; // Space needed per node
+            
+            // Dynamic cell dimensions based on content
+            const cellWidth = Math.max(baseWidth, Math.min(600, baseWidth + Math.sqrt(maxNodesInRepo - 1) * 40));
+            const cellHeight = Math.max(baseHeight, Math.min(500, baseHeight + Math.sqrt(maxNodesInRepo - 1) * 30));
+            
             const cellMargin = 25;
             const minMargin = 50;
             
@@ -911,7 +919,9 @@
             const minY = Math.min(...sortedRepoNodes.map(n => n.y));
             const maxY = Math.max(...sortedRepoNodes.map(n => n.y));
             
-            gridCols = Math.max(3, Math.min(6, Math.ceil((maxX - minX) / cellWidth)));
+            // Adjust grid columns based on both position spread and total number of repositories
+            const idealCols = Math.ceil(Math.sqrt(sortedRepoNodes.length * 1.2)); // Slightly rectangular
+            gridCols = Math.max(2, Math.min(8, idealCols)); // Allow more columns for many repos
             gridRows = Math.ceil(sortedRepoNodes.length / gridCols);
             
             // Calculate offsets to center the grid
@@ -1139,41 +1149,68 @@
                             }
                         }
                     } else {
-                        // For larger groups, use concentric circles
-                        const maxRadius = Math.min(availableWidth, availableHeight) * 0.4;
-                        let nodeIndex = 0;
-                        let ring = 0;
-                        
-                        // Place most connected node at center
-                        if (sortedNodes[0]) {
-                            sortedNodes[0].x = cellCenterX;
-                            sortedNodes[0].y = cellCenterY;
-                        }
-                        nodeIndex = 1;
-                        
-                        // Place remaining nodes in concentric rings
-                        while (nodeIndex < sortedNodes.length) {
-                            ring++;
-                            const ringRadius = (maxRadius * ring) / 3;
-                            const nodesInRing = Math.min(
-                                ring * 6, // Each ring can hold 6 more nodes than the previous
-                                sortedNodes.length - nodeIndex
-                            );
+                        // For larger groups, use improved layout
+                        if (nodes.length <= 20) {
+                            // Use concentric circles for medium-sized groups
+                            const maxRadius = Math.min(availableWidth, availableHeight) * 0.4;
+                            let nodeIndex = 0;
+                            let ring = 0;
                             
-                            if (nodesInRing > 0) {
-                                const angleStep = nodesInRing > 0 ? (2 * Math.PI) / nodesInRing : 0;
-                                
-                                for (let i = 0; i < nodesInRing && nodeIndex < sortedNodes.length; i++) {
-                                    const angle = i * angleStep - Math.PI / 2;
-                                    if (sortedNodes[nodeIndex]) {
-                                        sortedNodes[nodeIndex].x = cellCenterX + ringRadius * Math.cos(angle);
-                                        sortedNodes[nodeIndex].y = cellCenterY + ringRadius * Math.sin(angle);
-                                    }
-                                    nodeIndex++;
-                                }
-                            } else {
-                                break; // Safety check - should not happen but prevents infinite loop
+                            // Place most connected node at center
+                            if (sortedNodes[0]) {
+                                sortedNodes[0].x = cellCenterX;
+                                sortedNodes[0].y = cellCenterY;
                             }
+                            nodeIndex = 1;
+                            
+                            // Place remaining nodes in concentric rings
+                            while (nodeIndex < sortedNodes.length) {
+                                ring++;
+                                const ringRadius = (maxRadius * ring) / Math.ceil(Math.sqrt(nodes.length) / 2);
+                                const nodesInRing = Math.min(
+                                    ring * 6, // Each ring can hold 6 more nodes than the previous
+                                    sortedNodes.length - nodeIndex
+                                );
+                                
+                                if (nodesInRing > 0) {
+                                    const angleStep = (2 * Math.PI) / nodesInRing;
+                                    
+                                    for (let i = 0; i < nodesInRing && nodeIndex < sortedNodes.length; i++) {
+                                        const angle = i * angleStep - Math.PI / 2;
+                                        if (sortedNodes[nodeIndex]) {
+                                            sortedNodes[nodeIndex].x = cellCenterX + ringRadius * Math.cos(angle);
+                                            sortedNodes[nodeIndex].y = cellCenterY + ringRadius * Math.sin(angle);
+                                        }
+                                        nodeIndex++;
+                                    }
+                                } else {
+                                    break; // Safety check
+                                }
+                            }
+                        } else {
+                            // Use grid layout for very large repositories
+                            const gridSpacing = minNodeSpacing;
+                            const nodesPerRow = Math.floor(availableWidth / gridSpacing);
+                            const nodesPerCol = Math.floor(availableHeight / gridSpacing);
+                            
+                            // Calculate actual grid dimensions to center the grid
+                            const actualCols = Math.min(nodesPerRow, Math.ceil(Math.sqrt(nodes.length * 1.3)));
+                            const actualRows = Math.ceil(nodes.length / actualCols);
+                            
+                            const gridWidth = actualCols * gridSpacing;
+                            const gridHeight = actualRows * gridSpacing;
+                            const gridStartX = cellCenterX - gridWidth / 2;
+                            const gridStartY = cellCenterY - gridHeight / 2;
+                            
+                            sortedNodes.forEach((node, index) => {
+                                const row = Math.floor(index / actualCols);
+                                const col = index % actualCols;
+                                
+                                if (node) {
+                                    node.x = gridStartX + col * gridSpacing + gridSpacing / 2;
+                                    node.y = gridStartY + row * gridSpacing + gridSpacing / 2;
+                                }
+                            });
                         }
                     }
                     
@@ -1570,17 +1607,19 @@
             forceUpdateGroups();
             
             // Apply zoom if needed to show all repositories
-            const totalWidth = gridCols * cellWidth + 100;
-            const totalHeight = gridRows * cellHeight + 100;
-            if (totalWidth > width || totalHeight > height) {
-                const scaleX = width / totalWidth;
-                const scaleY = height / totalHeight;
-                const scale = Math.min(scaleX, scaleY) * 0.9;
-                
+            const totalWidth = gridCols * cellWidth + 200; // Add more margin
+            const totalHeight = gridRows * cellHeight + 200;
+            
+            // Always apply some zoom to ensure everything fits nicely
+            const scaleX = (width - 100) / totalWidth;
+            const scaleY = (height - 100) / totalHeight;
+            const scale = Math.min(1, Math.min(scaleX, scaleY) * 0.95); // Don't zoom in, only out
+            
+            if (scale < 1) {
                 const transform = d3.zoomIdentity
                     .translate(width / 2, height / 2)
                     .scale(scale)
-                    .translate(-width / 2, -height / 2);
+                    .translate(-totalWidth / 2, -totalHeight / 2);
                 
                 svg.call(zoom.transform, transform);
             }
