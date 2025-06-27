@@ -51,7 +51,8 @@ public class IssuesAnalysisController {
                 if (groupId != null && artifactId != null) {
                     Path projectPath = null;
                     if (nodeGroup != null && !"default".equals(nodeGroup)) {
-                        projectPath = Path.of("test-projects", nodeGroup);
+                        // Use nodeGroup as a relative path
+                        projectPath = Path.of(nodeGroup);
                     }
                     
                     Project project = new Project(groupId, artifactId, version, projectPath, null);

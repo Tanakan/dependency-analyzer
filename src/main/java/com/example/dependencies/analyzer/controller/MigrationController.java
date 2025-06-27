@@ -19,10 +19,22 @@ import java.util.stream.Collectors;
 public class MigrationController {
     private static final Logger logger = LoggerFactory.getLogger(MigrationController.class);
     
+    private Path getRootPath() {
+        // Get from system property, environment variable, or default to current directory
+        String path = System.getProperty("analysis.directory");
+        if (path == null) {
+            path = System.getenv("ANALYSIS_DIRECTORY");
+        }
+        if (path == null) {
+            path = ".";
+        }
+        return Paths.get(path);
+    }
+    
     @GetMapping("/repository-cohesion")
     public Map<String, Object> getRepositoryCohesion() {
         try {
-            Path rootPath = Paths.get("test-projects");
+            Path rootPath = getRootPath();
             DependencyAnalyzer analyzer = new DependencyAnalyzer();
             List<Project> allProjects = new ArrayList<>();
             List<Path> gitRepositories = analyzer.findGitRepositories(rootPath);
@@ -80,7 +92,7 @@ public class MigrationController {
     public MigrationReport analyzeMigration(@RequestParam(required = false) String repository) {
         try {
             // Run dependency analysis
-            Path rootPath = Paths.get("test-projects");
+            Path rootPath = getRootPath();
             DependencyAnalyzer analyzer = new DependencyAnalyzer();
             List<Project> allProjects = new ArrayList<>();
             List<Path> gitRepositories = analyzer.findGitRepositories(rootPath);
@@ -120,7 +132,7 @@ public class MigrationController {
     @GetMapping("/unused-dependencies")
     public Map<String, Object> findUnusedDependencies() {
         try {
-            Path rootPath = Paths.get("test-projects");
+            Path rootPath = getRootPath();
             DependencyAnalyzer analyzer = new DependencyAnalyzer();
             List<Project> allProjects = new ArrayList<>();
             List<Path> gitRepositories = analyzer.findGitRepositories(rootPath);
@@ -161,7 +173,7 @@ public class MigrationController {
     @GetMapping("/circular-dependencies")
     public Map<String, Object> findCircularDependencies() {
         try {
-            Path rootPath = Paths.get("test-projects");
+            Path rootPath = getRootPath();
             DependencyAnalyzer analyzer = new DependencyAnalyzer();
             List<Project> allProjects = new ArrayList<>();
             List<Path> gitRepositories = analyzer.findGitRepositories(rootPath);
@@ -293,7 +305,7 @@ public class MigrationController {
     @GetMapping("/dependency-impact")
     public Map<String, Object> getDependencyImpact() {
         try {
-            Path rootPath = Paths.get("test-projects");
+            Path rootPath = getRootPath();
             DependencyAnalyzer analyzer = new DependencyAnalyzer();
             List<Project> allProjects = new ArrayList<>();
             List<Path> gitRepositories = analyzer.findGitRepositories(rootPath);
@@ -416,15 +428,16 @@ public class MigrationController {
     }
     
     private String extractRepositoryName(Path path) {
-        String pathStr = path.toString();
-        String[] parts = pathStr.split("/");
-        // Find the repository name (usually the directory after test-projects)
-        for (int i = 0; i < parts.length - 1; i++) {
-            if (parts[i].equals("test-projects") && i + 1 < parts.length) {
-                return parts[i + 1];
+        // Find the git repository root
+        Path currentPath = path;
+        while (currentPath != null) {
+            if (currentPath.resolve(".git").toFile().exists()) {
+                return currentPath.getFileName().toString();
             }
+            currentPath = currentPath.getParent();
         }
-        return "unknown";
+        // If no git repository found, use the last directory name
+        return path.getFileName() != null ? path.getFileName().toString() : "unknown";
     }
     
 }
