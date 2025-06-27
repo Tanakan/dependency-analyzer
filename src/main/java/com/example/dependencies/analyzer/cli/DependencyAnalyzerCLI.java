@@ -53,6 +53,12 @@ public class DependencyAnalyzerCLI {
     }
     
     public void analyzeDependencies(String directoryPath) throws IOException {
+        // Expand tilde if present
+        if (directoryPath.startsWith("~")) {
+            String homeDir = System.getProperty("user.home");
+            directoryPath = homeDir + directoryPath.substring(1);
+        }
+        
         Path rootPath = Paths.get(directoryPath);
         
         if (!Files.exists(rootPath) || !Files.isDirectory(rootPath)) {
@@ -381,13 +387,21 @@ public class DependencyAnalyzerCLI {
     }
     
     private String determineNodeGroup(Project project) {
+        logger.debug("Determining node group for project: {}", project.getFullName());
+        logger.debug("  - ArtifactId: {}", project.getArtifactId());
+        logger.debug("  - GroupId: {}", project.getGroupId());
+        logger.debug("  - ProjectPath: {}", project.getProjectPath());
+        
         // Priority 1: Use artifact ID if it makes sense as a project name
         if (project.getArtifactId() != null && !project.getArtifactId().isEmpty()) {
             String artifactId = project.getArtifactId();
             
             // If artifact ID is meaningful (not just generic names), use it
             if (!isGenericArtifactId(artifactId)) {
+                logger.debug("  -> Using artifact ID as nodeGroup: {}", artifactId);
                 return artifactId;
+            } else {
+                logger.debug("  - Artifact ID '{}' is generic, skipping", artifactId);
             }
         }
         
@@ -397,7 +411,10 @@ public class DependencyAnalyzerCLI {
             if (groupParts.length > 0) {
                 String lastPart = groupParts[groupParts.length - 1];
                 if (!lastPart.isEmpty() && !isGenericGroupPart(lastPart)) {
+                    logger.debug("  -> Using group ID last part as nodeGroup: {}", lastPart);
                     return lastPart;
+                } else {
+                    logger.debug("  - Group ID last part '{}' is generic, skipping", lastPart);
                 }
             }
         }
@@ -405,24 +422,34 @@ public class DependencyAnalyzerCLI {
         // Priority 3: Use repository directory name
         if (project.getProjectPath() != null) {
             Path repoPath = project.getProjectPath();
+            logger.debug("  - Starting repository search from: {}", repoPath);
             // Find the git repository root
             while (repoPath != null && !Files.exists(repoPath.resolve(".git"))) {
                 repoPath = repoPath.getParent();
+                logger.debug("  - Checking parent: {}", repoPath);
             }
             if (repoPath != null) {
                 String repoName = repoPath.getFileName().toString();
+                logger.debug("  - Found repository: {}", repoName);
                 // Skip if it's a generic test directory
                 if (!isGenericDirectoryName(repoName)) {
+                    logger.debug("  -> Using repository name as nodeGroup: {}", repoName);
                     return repoName;
+                } else {
+                    logger.debug("  - Repository name '{}' is generic, skipping", repoName);
                 }
+            } else {
+                logger.debug("  - No git repository found in path hierarchy");
             }
         }
         
         // Priority 4: Fallback to artifact ID even if generic
         if (project.getArtifactId() != null && !project.getArtifactId().isEmpty()) {
+            logger.debug("  -> Fallback to artifact ID as nodeGroup: {}", project.getArtifactId());
             return project.getArtifactId();
         }
         
+        logger.debug("  -> Using 'unknown' as nodeGroup");
         return "unknown";
     }
     
@@ -444,10 +471,21 @@ public class DependencyAnalyzerCLI {
     
     private boolean isGenericDirectoryName(String dirName) {
         Set<String> genericDirs = Set.of(
-            "test-projects", "test", "demo", "sample", "examples", 
-            "projects", "repos", "repositories"
+            "test-projects", "test-project", "test", "demo", "sample", "examples", 
+            "projects", "project", "repos", "repositories", "repository",
+            "workspace", "workspaces", "src", "source", "sources"
         );
-        return genericDirs.contains(dirName.toLowerCase());
+        
+        // Also check for patterns like "test-*", "demo-*", "sample-*"
+        String lowerDirName = dirName.toLowerCase();
+        if (lowerDirName.startsWith("test-") || 
+            lowerDirName.startsWith("demo-") || 
+            lowerDirName.startsWith("sample-") ||
+            lowerDirName.startsWith("example-")) {
+            return true;
+        }
+        
+        return genericDirs.contains(lowerDirName);
     }
     
     private void saveAnalysisResult(Map<String, Object> analysisResult) throws IOException {
