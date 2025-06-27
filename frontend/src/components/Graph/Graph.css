@@ -1,0 +1,191 @@
+.graph-container {
+  flex: 1;
+  position: relative;
+  background: white;
+  overflow: hidden;
+}
+
+.graph-container svg {
+  width: 100%;
+  height: 100%;
+}
+
+.node {
+  cursor: move;
+  transition: all 0.3s ease;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+}
+
+.node:hover {
+  filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));
+  transform: scale(1.1);
+}
+
+.node.highlighted {
+  opacity: 1 !important;
+  filter: drop-shadow(0 4px 12px rgba(102, 126, 234, 0.4));
+  transform: scale(1.15);
+}
+
+.node.dimmed {
+  opacity: 0.2;
+  filter: grayscale(0.5);
+}
+
+.node.repo-highlighted {
+  opacity: 1 !important;
+  filter: drop-shadow(0 3px 8px rgba(102, 126, 234, 0.3));
+}
+
+.node.repo-dimmed {
+  opacity: 0.15;
+  filter: grayscale(0.7);
+}
+
+.link {
+  stroke: #667eea;
+  stroke-opacity: 0.7;
+  stroke-width: 2px;
+  fill: none;
+  filter: drop-shadow(0 1px 2px rgba(102, 126, 234, 0.2));
+  transition: all 0.3s ease;
+}
+
+.link:hover {
+  stroke: #764ba2;
+  stroke-opacity: 0.9;
+  stroke-width: 3px;
+  filter: drop-shadow(0 2px 4px rgba(118, 75, 162, 0.3));
+}
+
+.repo-frames rect {
+  fill: rgba(102, 126, 234, 0.03);
+  fill-opacity: 1;
+  stroke: #667eea;
+  stroke-opacity: 0.3;
+  stroke-width: 2;
+  filter: drop-shadow(0 2px 8px rgba(102, 126, 234, 0.1));
+  transition: all 0.3s ease;
+}
+
+.repo-frames rect:hover {
+  fill: rgba(102, 126, 234, 0.08);
+  stroke-opacity: 0.5;
+  filter: drop-shadow(0 4px 12px rgba(102, 126, 234, 0.2));
+}
+
+.repo-frames text {
+  font-weight: 600;
+  fill: #667eea;
+  font-size: 14px;
+  text-shadow: 0 1px 2px rgba(255,255,255,0.8);
+}
+
+/* Desktop only - no responsive design */
+
+/* React Flow styles */
+.react-flow__attribution {
+  display: none;
+}
+
+/* Style for group nodes (repository frames) */
+.react-flow__node-group {
+  background: transparent !important;
+}
+
+.react-flow__node-group > div {
+  height: 100%;
+  width: 100%;
+}
+
+.react-flow__node-group .react-flow__handle {
+  visibility: hidden;
+}
+
+.custom-node {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.custom-node:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+/* React Flow controls styling */
+.react-flow__controls {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.react-flow__controls-button {
+  background: white;
+  border: 1px solid #e5e7eb;
+  transition: all 0.2s ease;
+}
+
+.react-flow__controls-button:hover {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+}
+
+/* React Flow minimap styling */
+.react-flow__minimap {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Enhanced edge styling for better visibility */
+.react-flow__edge-path {
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+.react-flow__edge.selected .react-flow__edge-path {
+  filter: drop-shadow(0 3px 6px rgba(79, 70, 229, 0.4));
+}
+
+.react-flow__edge.animated {
+  stroke-dasharray: 8 4;
+  animation: dashdraw 0.5s linear infinite;
+}
+
+@keyframes dashdraw {
+  to {
+    stroke-dashoffset: -12;
+  }
+}
+
+/* Make arrow markers more prominent */
+.react-flow__arrowhead {
+  fill: currentColor;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
+}
+
+/* Ensure edges are rendered above nodes for better visibility */
+.react-flow__edges {
+  z-index: 10;
+}
+
+/* Override React Flow default edge hover */
+.react-flow__edge:hover .react-flow__edge-path {
+  stroke-width: 5px !important;
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.3));
+}
+
+/* Make edges stand out more */
+.react-flow__edge-path {
+  stroke: #374151 !important;
+  stroke-width: 3px !important;
+}
+
+.react-flow__edge.selected .react-flow__edge-path,
+.react-flow__edge.animated .react-flow__edge-path {
+  stroke: #4f46e5 !important;
+  stroke-width: 4px !important;
+}

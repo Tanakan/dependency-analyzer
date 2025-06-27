@@ -1,0 +1,59 @@
+{
+  "nodes": [
+    {
+      "id": "com.example:test-service-a",
+      "name": "test-service-a",
+      "version": "1.0.0",
+      "group": "com.example",
+      "type": "Maven",
+      "packaging": "jar",
+      "nodeGroup": "test-repo-1"
+    },
+    {
+      "id": "com.example:test-service-b",
+      "name": "test-service-b",
+      "version": "2.0.0",
+      "group": "com.example",
+      "type": "Maven",
+      "packaging": "pom",
+      "nodeGroup": "test-repo-1"
+    },
+    {
+      "id": "com.example:test-service-c",
+      "name": "test-service-c",
+      "version": "3.0.0",
+      "group": "com.example",
+      "type": "Gradle",
+      "packaging": "jar",
+      "nodeGroup": "test-repo-2"
+    }
+  ],
+  "links": [
+    {
+      "source": "com.example:test-service-a",
+      "target": "com.example:test-service-b",
+      "value": 1
+    },
+    {
+      "source": "com.example:test-service-b",
+      "target": "com.example:test-service-c",
+      "value": 1
+    }
+  ],
+  "stats": {
+    "totalProjects": 3,
+    "totalDependencies": 2
+  },
+  "analysisDate": "2025-06-27",
+  "version": "1.0",
+  "issues": {
+    "circularReferences": [
+      ["com.example:test-service-a:1.0.0", "com.example:test-service-b:2.0.0", "com.example:test-service-a:1.0.0"]
+    ],
+    "unreferencedProjects": ["com.example:test-orphan-project"],
+    "duplicateArtifactIds": {
+      "test-service": ["com.example:test-service#1", "com.example:test-service#2"]
+    },
+    "duplicateGAVs": {}
+  }
+}

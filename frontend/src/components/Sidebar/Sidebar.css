@@ -1,0 +1,134 @@
+.sidebar {
+  width: 280px;
+  height: 100%;
+  background: #f9fafb;
+  border-right: 1px solid #e5e7eb;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+.sidebar-header {
+  padding: 16px;
+  border-bottom: 1px solid #e5e7eb;
+  background: white;
+}
+
+.sidebar-header h3 {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.stats {
+  font-size: 13px;
+  color: #6b7280;
+  padding: 8px 12px;
+  background: #f3f4f6;
+  border-radius: 6px;
+}
+
+.repository-list {
+  padding: 12px;
+}
+
+.repository-group {
+  margin-bottom: 8px;
+  background: white;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+  transition: all 0.2s ease;
+}
+
+.repository-group:hover {
+  border-color: #d1d5db;
+}
+
+.repository-header {
+  padding: 12px 14px;
+  background: white;
+  font-weight: 500;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  user-select: none;
+  color: #374151;
+}
+
+.repository-header:hover {
+  background: #f9fafb;
+}
+
+
+.repository-header.selected {
+  background: #6366f1;
+  color: white;
+}
+
+.chevron {
+  transition: transform 0.2s;
+  margin-right: 6px;
+  font-size: 10px;
+  color: #9ca3af;
+}
+
+.chevron.collapsed {
+  transform: rotate(-90deg);
+}
+
+.project-count {
+  font-size: 12px;
+  background-color: #e5e7eb;
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: #6b7280;
+}
+
+.repository-header.selected .project-count {
+  background-color: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+.project-list {
+  padding: 4px 8px 8px;
+}
+
+.project-item {
+  padding: 8px 12px;
+  margin: 2px 4px;
+  background: transparent;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #4b5563;
+}
+
+.project-item:hover {
+  background: #f3f4f6;
+  color: #1f2937;
+}
+
+
+.project-item.selected {
+  background: #6366f1;
+  color: white;
+}
+
+.project-name {
+  font-weight: 500;
+}
+
+.project-version {
+  font-size: 11px;
+  opacity: 0.6;
+}
+
+/* Desktop only - no responsive design */

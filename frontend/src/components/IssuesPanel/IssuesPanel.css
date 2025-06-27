@@ -1,0 +1,203 @@
+.issues-panel {
+  padding: 60px;
+  background-color: #ffffff;
+  color: #1f2937;
+  overflow-y: auto;
+  height: 100%;
+  border: 2px solid #e5e7eb;
+  border-radius: 20px;
+  width: 100%;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.issues-panel h2 {
+  margin: 0 0 48px 0;
+  color: #1f2937;
+  font-size: 48px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.issues-summary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 32px;
+  margin-bottom: 60px;
+}
+
+.summary-item {
+  background-color: #f9fafb;
+  padding: 40px;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  border: 2px solid #e5e7eb;
+  transition: all 0.2s ease;
+  min-height: 200px;
+  justify-content: center;
+}
+
+.summary-item:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
+}
+
+.summary-label {
+  font-size: 20px;
+  color: #6b7280;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+.summary-count {
+  font-size: 64px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.summary-count.error {
+  color: #ef4444;
+}
+
+.summary-count.warning {
+  color: #f59e0b;
+}
+
+.summary-count.info {
+  color: #3b82f6;
+}
+
+.issues-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+}
+
+.issue-section {
+  background-color: #f9fafb;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 2px solid #e5e7eb;
+  transition: all 0.2s ease;
+}
+
+.issue-section:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+.section-header {
+  padding: 32px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  transition: background-color 0.2s;
+  user-select: none;
+  background-color: white;
+}
+
+.section-header:hover {
+  background-color: #f3f4f6;
+}
+
+.section-header h3 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.section-toggle {
+  font-size: 20px;
+  color: #6b7280;
+}
+
+.section-content {
+  padding: 40px;
+  border-top: 2px solid #e5e7eb;
+  background-color: white;
+}
+
+.no-issues {
+  color: #10b981;
+  font-style: italic;
+  margin: 20px 0;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.issue-list {
+  list-style: none;
+  padding: 0;
+  margin: 20px 0 0 0;
+}
+
+.issue-item {
+  padding: 20px 24px;
+  margin-bottom: 16px;
+  border-radius: 12px;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 18px;
+  line-height: 1.8;
+}
+
+.issue-item.error {
+  background-color: #fee2e2;
+  border-left: 6px solid #ef4444;
+  color: #991b1b;
+}
+
+.issue-item.warning {
+  background-color: #fef3c7;
+  border-left: 6px solid #f59e0b;
+  color: #92400e;
+}
+
+.cycle-label {
+  color: #dc2626;
+  font-weight: 600;
+  margin-right: 8px;
+}
+
+.cycle-path {
+  color: #374151;
+}
+
+.duplicate-list {
+  margin-top: 8px;
+}
+
+.duplicate-item {
+  margin-bottom: 24px;
+  padding: 24px;
+  background-color: #f9fafb;
+  border-radius: 12px;
+  border: 2px solid #e5e7eb;
+}
+
+.duplicate-item h4 {
+  margin: 0 0 16px 0;
+  color: #2563eb;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.duplicate-item ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.duplicate-item li {
+  padding: 10px 0;
+  color: #6b7280;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 18px;
+  padding-left: 30px;
+  line-height: 1.6;
+}
+
+/* Desktop only - no responsive design */
