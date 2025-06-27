@@ -466,7 +466,14 @@ public class DependencyAnalyzerCLI {
         logger.debug("  - GroupId: {}", project.getGroupId());
         logger.debug("  - ProjectPath: {}", project.getProjectPath());
         
-        // Priority 1: Use artifact ID if it makes sense as a project name
+        // Priority 1: Use repository directory name if meaningful
+        String repoName = getRepositoryName(project);
+        if (repoName != null && !isGenericDirectoryName(repoName)) {
+            logger.debug("  -> Using repository name as nodeGroup: {}", repoName);
+            return repoName;
+        }
+        
+        // Priority 2: Use artifact ID if it makes sense as a project name
         if (project.getArtifactId() != null && !project.getArtifactId().isEmpty()) {
             String artifactId = project.getArtifactId();
             
@@ -475,11 +482,23 @@ public class DependencyAnalyzerCLI {
                 logger.debug("  -> Using artifact ID as nodeGroup: {}", artifactId);
                 return artifactId;
             } else {
-                logger.debug("  - Artifact ID '{}' is generic, skipping", artifactId);
+                logger.debug("  - Artifact ID '{}' is generic, checking combinations", artifactId);
+                
+                // Try combining with group ID for generic artifact IDs
+                if (project.getGroupId() != null && !project.getGroupId().isEmpty()) {
+                    String[] groupParts = project.getGroupId().split("\\.");
+                    if (groupParts.length >= 2) {
+                        // Use last two parts of group ID + artifact ID for generic names
+                        String combined = groupParts[groupParts.length - 2] + "-" + 
+                                        groupParts[groupParts.length - 1] + "-" + artifactId;
+                        logger.debug("  -> Using combined group+artifact as nodeGroup: {}", combined);
+                        return combined;
+                    }
+                }
             }
         }
         
-        // Priority 2: Use group ID's last component
+        // Priority 3: Use group ID's last component(s)
         if (project.getGroupId() != null && !project.getGroupId().isEmpty()) {
             String[] groupParts = project.getGroupId().split("\\.");
             if (groupParts.length > 0) {
@@ -487,37 +506,23 @@ public class DependencyAnalyzerCLI {
                 if (!lastPart.isEmpty() && !isGenericGroupPart(lastPart)) {
                     logger.debug("  -> Using group ID last part as nodeGroup: {}", lastPart);
                     return lastPart;
-                } else {
-                    logger.debug("  - Group ID last part '{}' is generic, skipping", lastPart);
+                } else if (groupParts.length >= 2) {
+                    // Try using last two parts
+                    String lastTwoParts = groupParts[groupParts.length - 2] + "-" + 
+                                         groupParts[groupParts.length - 1];
+                    logger.debug("  -> Using group ID last two parts as nodeGroup: {}", lastTwoParts);
+                    return lastTwoParts;
                 }
             }
         }
         
-        // Priority 3: Use repository directory name
-        if (project.getProjectPath() != null) {
-            Path repoPath = project.getProjectPath();
-            logger.debug("  - Starting repository search from: {}", repoPath);
-            // Find the git repository root
-            while (repoPath != null && !Files.exists(repoPath.resolve(".git"))) {
-                repoPath = repoPath.getParent();
-                logger.debug("  - Checking parent: {}", repoPath);
-            }
-            if (repoPath != null) {
-                String repoName = repoPath.getFileName().toString();
-                logger.debug("  - Found repository: {}", repoName);
-                // Skip if it's a generic test directory
-                if (!isGenericDirectoryName(repoName)) {
-                    logger.debug("  -> Using repository name as nodeGroup: {}", repoName);
-                    return repoName;
-                } else {
-                    logger.debug("  - Repository name '{}' is generic, skipping", repoName);
-                }
-            } else {
-                logger.debug("  - No git repository found in path hierarchy");
-            }
+        // Priority 4: Use repository name even if generic (better than nothing)
+        if (repoName != null) {
+            logger.debug("  -> Fallback to repository name as nodeGroup: {}", repoName);
+            return repoName;
         }
         
-        // Priority 4: Fallback to artifact ID even if generic
+        // Priority 5: Fallback to artifact ID even if generic
         if (project.getArtifactId() != null && !project.getArtifactId().isEmpty()) {
             logger.debug("  -> Fallback to artifact ID as nodeGroup: {}", project.getArtifactId());
             return project.getArtifactId();
@@ -525,6 +530,23 @@ public class DependencyAnalyzerCLI {
         
         logger.debug("  -> Using 'unknown' as nodeGroup");
         return "unknown";
+    }
+    
+    private String getRepositoryName(Project project) {
+        if (project.getProjectPath() == null) {
+            return null;
+        }
+        
+        Path repoPath = project.getProjectPath();
+        // Find the git repository root
+        while (repoPath != null && !Files.exists(repoPath.resolve(".git"))) {
+            repoPath = repoPath.getParent();
+        }
+        
+        if (repoPath != null) {
+            return repoPath.getFileName().toString();
+        }
+        return null;
     }
     
     private boolean isGenericArtifactId(String artifactId) {
