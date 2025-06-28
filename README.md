@@ -9,7 +9,7 @@ A powerful tool for analyzing and visualizing dependencies in Maven and Gradle p
 - 📈 **Cohesion Analysis**: Measures repository cohesion based on internal vs external dependencies
 - ⚠️ **Issue Detection**: Identifies circular dependencies, unreferenced projects, and duplicate artifact IDs
 - 🎯 **Smart Filtering**: Filter by individual projects or entire repositories with automatic zoom
-- 🌐 **Static HTML Output**: View results directly in your browser without a server
+- ⚛️ **React Frontend**: Modern UI that automatically loads analysis results
 
 ## Quick Start
 
@@ -17,115 +17,85 @@ A powerful tool for analyzing and visualizing dependencies in Maven and Gradle p
 
 - Java 11 or higher
 - Maven 3.6+
-- A modern web browser (Chrome, Firefox, Safari, Edge)
+- Node.js 18+ (for React frontend)
 
-### Quick Installation
+### Installation & Usage
+
+```bash
+# 1. Clone and install
+git clone https://github.com/Tanakan/dependency-analyzer.git
+cd dependency-analyzer
+mvn clean install
+
+# 2. Analyze your projects
+java -jar target/dependencies-analyzer-1.0-SNAPSHOT.jar ~/your-projects
+
+# 3. View results with React
+cd frontend
+npm install
+npm start
+# Opens at http://localhost:3000 and automatically loads the analysis
+```
+
+That's it! The React app will automatically load `frontend/public/dependencies-analysis.json` when it starts.
+
+### Detailed Usage
+
+#### Step 1: Install the Analyzer
 
 ```bash
 # Clone the repository
 git clone https://github.com/Tanakan/dependency-analyzer.git
 cd dependency-analyzer
 
-# Build the project
-mvn clean package
-
-# Test with sample projects
-java -jar target/dependencies-analyzer-1.0-SNAPSHOT.jar test-projects
-
-# Open the visualization
-open src/main/resources/static/simple-graph.html
+# Install with Maven
+mvn clean install
 ```
 
-### Usage
-
-#### Step 1: Build the Project
-
-```bash
-# Clone the repository
-git clone https://github.com/Tanakan/dependency-analyzer.git
-cd dependency-analyzer
-
-# Build with Maven
-mvn clean package
-```
+This creates an executable JAR in `target/dependencies-analyzer-1.0-SNAPSHOT.jar`.
 
 #### Step 2: Analyze Your Projects
 
 ```bash
-# Basic usage - analyze a directory containing Git repositories
+# Analyze a directory containing your projects
 java -jar target/dependencies-analyzer-1.0-SNAPSHOT.jar <directory-path>
 
-# Example: Analyze the included test projects
+# Example: Analyze test projects
 java -jar target/dependencies-analyzer-1.0-SNAPSHOT.jar test-projects
 
-# Example: Analyze your own projects
-java -jar target/dependencies-analyzer-1.0-SNAPSHOT.jar ~/my-projects
-
-# Specify custom output location
-java -jar target/dependencies-analyzer-1.0-SNAPSHOT.jar ~/my-projects ./my-analysis.json
-
-# Use system properties for configuration
-java -Danalyzer.output.directory=./results \
-     -Danalyzer.output.filename=deps-$(date +%Y%m%d).json \
-     -jar target/dependencies-analyzer-1.0-SNAPSHOT.jar ~/my-projects
+# The analysis creates: frontend/public/dependencies-analysis.json
 ```
 
-The tool will:
-1. Scan all Git repositories in the specified directory
-2. Find all Maven (pom.xml) and Gradle (build.gradle/build.gradle.kts) projects
-3. Analyze dependencies between projects
-4. Generate a JSON file with the analysis results
-
-#### Step 3: Visualize the Results
-
-1. **Open the visualization page**:
-   - Navigate to `src/main/resources/static/` in your file browser
-   - Open `simple-graph.html` in a web browser
-   - Or use a local web server:
-     ```bash
-     cd src/main/resources/static
-     python3 -m http.server 8000
-     # Then open http://localhost:8000/simple-graph.html
-     ```
-
-2. **Load your analysis**:
-   - Click "Choose File" button
-   - Select the generated JSON file (default: `./frontend/public/dependencies-analysis.json`)
-   - The dependency graph will be displayed automatically
-
-3. **Interact with the graph**:
-   - **Drag nodes** to rearrange the layout
-   - **Click on a node** to highlight its dependencies
-   - **Click on repository labels** to filter by repository
-   - **Use mouse wheel** to zoom in/out
-   - **Double-click** on empty space to reset the view
-
-#### Additional Visualizations
-
-Besides the main dependency graph, you can also use:
-
-- **`cohesion.html`** - Analyze repository cohesion (internal vs external dependencies)
-- **`issues.html`** - View detected issues like circular dependencies and unreferenced projects
-
-### Example Workflow
+#### Step 3: View with React Frontend
 
 ```bash
-# 1. Build the tool
-mvn clean package
+# First time setup
+cd frontend
+npm install
 
-# 2. Analyze your microservices
-java -jar target/dependencies-analyzer-1.0-SNAPSHOT.jar ~/microservices-workspace
+# Start the React app
+npm start
+```
 
-# 3. View the results
+The React app will:
+- Start at http://localhost:3000
+- Automatically load the analysis from `public/dependencies-analysis.json`
+- Display an interactive dependency graph
+
+### Alternative: Static HTML Viewer
+
+If you prefer not to use the React frontend, you can use the static HTML viewers:
+
+```bash
+# Open the static viewer
 open src/main/resources/static/simple-graph.html
-# Or on Linux: xdg-open src/main/resources/static/simple-graph.html
 
-# 4. Load the generated dependencies-analysis.json file in the web interface
+# Then manually load the generated JSON file
 ```
 
 ## Visualization Features
 
-### Dependency Graph (simple-graph.html)
+### Dependency Graph
 
 - **Interactive force-directed graph** showing all project dependencies
 - **Visual differentiation**:
@@ -138,7 +108,7 @@ open src/main/resources/static/simple-graph.html
   - Filter by repository or individual projects
   - Zoom and pan for large graphs
 
-### Cohesion Analysis (cohesion.html)
+### Cohesion Analysis
 
 - **Repository cohesion metrics** (internal dependencies ÷ total dependencies)
 - **Visual indicators**:
@@ -148,7 +118,7 @@ open src/main/resources/static/simple-graph.html
 - **Detailed breakdown** of internal vs external dependencies
 - **Unreferenced projects** identification
 
-### Issues Detection (issues.html)
+### Issues Detection
 
 - **Circular Dependencies**: 
   - Visual representation of dependency cycles
@@ -225,40 +195,28 @@ npm start
 
 The React frontend provides an alternative modern UI for viewing the analysis results.
 
-## Configuration Options
+## Additional Options
 
-### Output Location
+### Custom Output Location
 
-By default, the analysis results are saved to `./frontend/public/dependencies-analysis.json`.
+```bash
+# Specify a different output file
+java -jar target/dependencies-analyzer-1.0-SNAPSHOT.jar ~/projects ./custom-output.json
 
-You can customize this using:
+# Use system properties
+java -Danalyzer.output.directory=./results \
+     -Danalyzer.output.filename=analysis.json \
+     -jar target/dependencies-analyzer-1.0-SNAPSHOT.jar ~/projects
+```
 
-1. **Command line argument**:
-   ```bash
-   java -jar target/dependencies-analyzer-1.0-SNAPSHOT.jar <input-dir> <output-file>
-   ```
-
-2. **System properties**:
-   ```bash
-   java -Danalyzer.output.directory=./results \
-        -Danalyzer.output.filename=analysis.json \
-        -jar target/dependencies-analyzer-1.0-SNAPSHOT.jar <input-dir>
-   ```
-
-### Logging Configuration
-
-Control the verbosity of the analysis:
+### Logging Control
 
 ```bash
 # Quiet mode (only errors)
-java -Dlogging.level.root=ERROR -jar target/dependencies-analyzer-1.0-SNAPSHOT.jar <dir>
+java -Dlogging.level.root=ERROR -jar target/dependencies-analyzer-1.0-SNAPSHOT.jar ~/projects
 
 # Debug mode (detailed information)
-java -Dlogging.level.root=DEBUG -jar target/dependencies-analyzer-1.0-SNAPSHOT.jar <dir>
-
-# Specific package logging
-java -Dlogging.level.com.example.dependencies.analyzer=DEBUG \
-     -jar target/dependencies-analyzer-1.0-SNAPSHOT.jar <dir>
+java -Dlogging.level.root=DEBUG -jar target/dependencies-analyzer-1.0-SNAPSHOT.jar ~/projects
 ```
 
 ## Use Cases
