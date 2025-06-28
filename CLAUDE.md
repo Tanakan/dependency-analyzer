@@ -66,7 +66,7 @@ java -cp target/classes:$(mvn dependency:build-classpath -Dmdep.outputFile=/dev/
 # Spring Bootアプリケーションを起動
 mvn spring-boot:run
 
-# ブラウザでhttp://localhost:8080にアクセス
+# ブラウザでhttp://localhost:3030にアクセス
 # dependencies-analysis.jsonファイルが自動的に読み込まれ、グラフが表示される
 ```
 

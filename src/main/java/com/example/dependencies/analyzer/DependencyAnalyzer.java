@@ -79,7 +79,7 @@ public class DependencyAnalyzer {
         
         // HTML visualization is now handled by the web interface
         // No need to generate static HTML file
-        logger.info("Analysis complete. Access the web interface at http://localhost:8080/");
+        logger.info("Analysis complete. Access the web interface at http://localhost:3030/");
     }
     
     public List<Path> findGitRepositories(Path rootPath) throws IOException {

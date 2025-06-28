@@ -62,7 +62,7 @@ mvn spring-boot:run
 
 2. Open your browser and navigate to:
 ```
-http://localhost:8080
+http://localhost:3030
 ```
 
 3. The application will automatically analyze projects in the included `test-projects` directory
@@ -155,7 +155,7 @@ This project includes a complete dev container setup for Visual Studio Code:
 - **Java 17** with Maven
 - **Node.js 18** with npm
 - **Pre-installed extensions**: Java Extension Pack, Spring Boot Tools, ESLint, Prettier
-- **Auto port forwarding**: 3000 (React), 8080 (Spring Boot)
+- **Auto port forwarding**: 3000 (React), 3030 (Spring Boot)
 - **Persistent Maven cache** for faster builds
 
 ### Local Development
@@ -163,7 +163,7 @@ This project includes a complete dev container setup for Visual Studio Code:
 #### Backend (Spring Boot)
 ```bash
 mvn spring-boot:run
-# Runs on http://localhost:8080
+# Runs on http://localhost:3030
 ```
 
 #### Frontend (React)
