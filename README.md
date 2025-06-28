@@ -15,99 +15,150 @@ A powerful tool for analyzing and visualizing dependencies in Maven and Gradle p
 
 ### Prerequisites
 
-- Java 17 or higher
+- Java 11 or higher
 - Maven 3.6+
-- Node.js 18+ (for frontend development)
+- A modern web browser (Chrome, Firefox, Safari, Edge)
 
-### Option 1: Dev Container (Recommended for Development)
+### Quick Installation
 
-If you have Visual Studio Code and Docker:
-
-1. Clone the repository:
 ```bash
+# Clone the repository
 git clone https://github.com/Tanakan/dependency-analyzer.git
 cd dependency-analyzer
-```
 
-2. Open in VS Code and select "Reopen in Container" when prompted
-3. Everything will be set up automatically!
-
-### Option 2: Local Installation
-
-1. Clone the repository:
-```bash
-git clone https://github.com/Tanakan/dependency-analyzer.git
-cd dependency-analyzer
-```
-
-2. Build the project:
-```bash
+# Build the project
 mvn clean package
-```
 
-3. Install frontend dependencies:
-```bash
-cd frontend
-npm install
+# Test with sample projects
+java -jar target/dependencies-analyzer-1.0-SNAPSHOT.jar test-projects
+
+# Open the visualization
+open src/main/resources/static/simple-graph.html
 ```
 
 ### Usage
 
-#### Web Interface
-
-After running the CLI to generate the analysis JSON file, you can view the results by opening the HTML files in the `src/main/resources/static` directory in your browser:
-
-- `simple-graph.html` - Interactive dependency graph visualization
-- `cohesion.html` - Repository cohesion analysis
-- `issues.html` - Dependency issues analysis
-
-#### Command Line Interface
+#### Step 1: Build the Project
 
 ```bash
-# Analyze a directory (output to ./frontend/public/dependencies-analysis.json by default)
-java -jar target/dependencies-analyzer-1.0-SNAPSHOT.jar <directory-path>
+# Clone the repository
+git clone https://github.com/Tanakan/dependency-analyzer.git
+cd dependency-analyzer
 
-# Specify custom output file
-java -jar target/dependencies-analyzer-1.0-SNAPSHOT.jar <directory-path> <output-file>
-
-# Example: Analyze the included test-projects
-java -jar target/dependencies-analyzer-1.0-SNAPSHOT.jar test-projects
-
-# Example: Output to custom location
-java -jar target/dependencies-analyzer-1.0-SNAPSHOT.jar test-projects ./output/analysis.json
-
-# Configure output directory via system properties
-java -Danalyzer.output.directory=./custom-output \
-     -Danalyzer.output.filename=my-analysis.json \
-     -jar target/dependencies-analyzer-1.0-SNAPSHOT.jar test-projects
+# Build with Maven
+mvn clean package
 ```
 
-The analysis results are saved as JSON and can be visualized using the web interface.
+#### Step 2: Analyze Your Projects
 
-## Web Interface Features
+```bash
+# Basic usage - analyze a directory containing Git repositories
+java -jar target/dependencies-analyzer-1.0-SNAPSHOT.jar <directory-path>
 
-### Dependency Graph (/)
+# Example: Analyze the included test projects
+java -jar target/dependencies-analyzer-1.0-SNAPSHOT.jar test-projects
 
-- Interactive force-directed graph showing all project dependencies
-- Different shapes for JAR (circle) and WAR (square) projects
-- Color-coded by repository
-- Click on any project to filter and zoom
-- Click on repository headers to filter by repository
+# Example: Analyze your own projects
+java -jar target/dependencies-analyzer-1.0-SNAPSHOT.jar ~/my-projects
 
-### Cohesion Analysis (/cohesion.html)
+# Specify custom output location
+java -jar target/dependencies-analyzer-1.0-SNAPSHOT.jar ~/my-projects ./my-analysis.json
 
-- Repository cohesion scores (internal dependencies / total dependencies)
-- Visual bar chart with color-coded cohesion levels:
-  - Green (>0.7): High cohesion - good modularity
-  - Yellow (0.4-0.7): Medium cohesion - consider reviewing
-  - Red (<0.4): Low cohesion - consider splitting repository
-- List of unreferenced projects
+# Use system properties for configuration
+java -Danalyzer.output.directory=./results \
+     -Danalyzer.output.filename=deps-$(date +%Y%m%d).json \
+     -jar target/dependencies-analyzer-1.0-SNAPSHOT.jar ~/my-projects
+```
 
-### Issues Analysis (/issues.html)
+The tool will:
+1. Scan all Git repositories in the specified directory
+2. Find all Maven (pom.xml) and Gradle (build.gradle/build.gradle.kts) projects
+3. Analyze dependencies between projects
+4. Generate a JSON file with the analysis results
 
-- **Circular Dependencies**: Detects and displays dependency cycles
-- **Unreferenced Projects**: Projects not used by any other project
-- **Duplicate Artifact IDs**: Projects with the same artifact ID in different locations
+#### Step 3: Visualize the Results
+
+1. **Open the visualization page**:
+   - Navigate to `src/main/resources/static/` in your file browser
+   - Open `simple-graph.html` in a web browser
+   - Or use a local web server:
+     ```bash
+     cd src/main/resources/static
+     python3 -m http.server 8000
+     # Then open http://localhost:8000/simple-graph.html
+     ```
+
+2. **Load your analysis**:
+   - Click "Choose File" button
+   - Select the generated JSON file (default: `./frontend/public/dependencies-analysis.json`)
+   - The dependency graph will be displayed automatically
+
+3. **Interact with the graph**:
+   - **Drag nodes** to rearrange the layout
+   - **Click on a node** to highlight its dependencies
+   - **Click on repository labels** to filter by repository
+   - **Use mouse wheel** to zoom in/out
+   - **Double-click** on empty space to reset the view
+
+#### Additional Visualizations
+
+Besides the main dependency graph, you can also use:
+
+- **`cohesion.html`** - Analyze repository cohesion (internal vs external dependencies)
+- **`issues.html`** - View detected issues like circular dependencies and unreferenced projects
+
+### Example Workflow
+
+```bash
+# 1. Build the tool
+mvn clean package
+
+# 2. Analyze your microservices
+java -jar target/dependencies-analyzer-1.0-SNAPSHOT.jar ~/microservices-workspace
+
+# 3. View the results
+open src/main/resources/static/simple-graph.html
+# Or on Linux: xdg-open src/main/resources/static/simple-graph.html
+
+# 4. Load the generated dependencies-analysis.json file in the web interface
+```
+
+## Visualization Features
+
+### Dependency Graph (simple-graph.html)
+
+- **Interactive force-directed graph** showing all project dependencies
+- **Visual differentiation**:
+  - JAR projects: Blue circles
+  - WAR projects: Red squares
+  - Repository grouping with labeled boundaries
+- **Interactive features**:
+  - Drag nodes to reorganize the layout
+  - Click nodes to highlight dependency paths
+  - Filter by repository or individual projects
+  - Zoom and pan for large graphs
+
+### Cohesion Analysis (cohesion.html)
+
+- **Repository cohesion metrics** (internal dependencies ÷ total dependencies)
+- **Visual indicators**:
+  - Green (>70%): High cohesion - well-modularized repository
+  - Yellow (40-70%): Medium cohesion - may need restructuring
+  - Red (<40%): Low cohesion - consider splitting the repository
+- **Detailed breakdown** of internal vs external dependencies
+- **Unreferenced projects** identification
+
+### Issues Detection (issues.html)
+
+- **Circular Dependencies**: 
+  - Visual representation of dependency cycles
+  - Helps identify architectural problems
+- **Unreferenced Projects**: 
+  - Lists projects not used by any other project
+  - Candidates for removal or separate deployment
+- **Duplicate Artifact IDs**: 
+  - Identifies naming conflicts across repositories
+  - Helps maintain consistent project naming
 
 ## Project Structure
 
@@ -137,48 +188,97 @@ dependency-analyzer/
 
 ## Development
 
-### Dev Container
+### Dev Container Support
 
-This project includes a complete dev container setup for Visual Studio Code:
+For VS Code users, this project includes a complete dev container configuration:
 
-- **Java 17** with Maven
-- **Node.js 18** with npm
-- **Pre-installed extensions**: Java Extension Pack, ESLint, Prettier
-- **Auto port forwarding**: 3000 (React)
-- **Persistent Maven cache** for faster builds
+1. Install the "Dev Containers" extension in VS Code
+2. Open the project folder
+3. Click "Reopen in Container" when prompted
+4. The container includes Java 17, Maven, Node.js 18, and all required tools
 
 ### Local Development
 
-#### Frontend (React)
+#### Building from Source
+```bash
+# Compile only
+mvn clean compile
+
+# Run tests
+mvn test
+
+# Package JAR
+mvn clean package
+
+# Run without packaging
+mvn compile exec:java -Dexec.mainClass="com.example.dependencies.analyzer.cli.DependencyAnalyzerCLI" \
+  -Dexec.args="/path/to/projects"
+```
+
+#### Frontend Development (React)
 ```bash
 cd frontend
+npm install
 npm start
-# Runs on http://localhost:3000
+# Opens at http://localhost:3000
 ```
 
-#### CLI Analysis
-```bash
-mvn clean compile
-java -cp target/classes:$(mvn dependency:build-classpath -Dmdep.outputFile=/dev/stdout -q) \
-  com.example.dependencies.analyzer.cli.DependencyAnalyzerCLI /path/to/repositories
-```
+The React frontend provides an alternative modern UI for viewing the analysis results.
 
-## Configuration
+## Configuration Options
 
 ### Output Location
 
-By default, the CLI outputs analysis results to `./frontend/public/dependencies-analysis.json` so the frontend can automatically load them.
+By default, the analysis results are saved to `./frontend/public/dependencies-analysis.json`.
 
-You can customize the output location using:
-- Command line argument: `java -jar analyzer.jar <dir> <output-file>`
-- System properties: `-Danalyzer.output.directory=<dir> -Danalyzer.output.filename=<file>`
+You can customize this using:
 
-### Analysis Directory
+1. **Command line argument**:
+   ```bash
+   java -jar target/dependencies-analyzer-1.0-SNAPSHOT.jar <input-dir> <output-file>
+   ```
 
-The CLI analyzes the directory you specify as a command line argument:
+2. **System properties**:
+   ```bash
+   java -Danalyzer.output.directory=./results \
+        -Danalyzer.output.filename=analysis.json \
+        -jar target/dependencies-analyzer-1.0-SNAPSHOT.jar <input-dir>
+   ```
+
+### Logging Configuration
+
+Control the verbosity of the analysis:
 
 ```bash
-java -jar target/dependencies-analyzer-1.0-SNAPSHOT.jar /path/to/your/projects
+# Quiet mode (only errors)
+java -Dlogging.level.root=ERROR -jar target/dependencies-analyzer-1.0-SNAPSHOT.jar <dir>
+
+# Debug mode (detailed information)
+java -Dlogging.level.root=DEBUG -jar target/dependencies-analyzer-1.0-SNAPSHOT.jar <dir>
+
+# Specific package logging
+java -Dlogging.level.com.example.dependencies.analyzer=DEBUG \
+     -jar target/dependencies-analyzer-1.0-SNAPSHOT.jar <dir>
+```
+
+## Use Cases
+
+### Monorepo Analysis
+Analyze all projects in a monorepo to understand internal dependencies:
+```bash
+java -jar target/dependencies-analyzer-1.0-SNAPSHOT.jar ~/company/monorepo
+```
+
+### Microservices Architecture
+Visualize dependencies across multiple service repositories:
+```bash
+java -jar target/dependencies-analyzer-1.0-SNAPSHOT.jar ~/microservices
+```
+
+### Legacy System Migration
+Identify tightly coupled components before breaking apart a monolith:
+```bash
+java -jar target/dependencies-analyzer-1.0-SNAPSHOT.jar ~/legacy-system
 ```
 
 ## Contributing
