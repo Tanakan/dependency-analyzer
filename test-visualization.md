@@ -41,8 +41,8 @@ const targetNode = typeof d.target === 'object' ? d.target : data.nodes.find(n =
 
 ## Testing Steps
 1. Run the dependency analyzer CLI to generate a new JSON file with duplicate projects
-2. Start the Spring Boot application
-3. Open http://localhost:3030 in a browser
+2. Open src/main/resources/static/simple-graph.html in a browser
+3. Upload the generated JSON file
 4. Verify that:
    - All links are displayed correctly
    - Links to duplicate projects (like config-service) are visible

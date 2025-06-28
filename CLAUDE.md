@@ -14,7 +14,7 @@
   - Gitリポジトリをスキャンして依存関係を解析
   - グラフ構造（ノードとリンク）のJSONファイルを出力
   
-- **Spring Boot Webアプリケーション**: 
+- **静的HTMLファイル**: 
   - CLIで生成されたJSONファイルを読み込み
   - D3.jsを使用してインタラクティブなグラフとして可視化
 
@@ -60,15 +60,13 @@ java -cp target/classes:$(mvn dependency:build-classpath -Dmdep.outputFile=/dev/
 # 結果はdependencies-analysis.jsonファイルに出力される
 ```
 
-### 2. 解析結果の可視化（Spring Boot）
+### 2. 解析結果の可視化
 
-```bash
-# Spring Bootアプリケーションを起動
-mvn spring-boot:run
+解析結果のJSONファイルが生成されたら、`src/main/resources/static`ディレクトリ内のHTMLファイルをブラウザで開いて結果を確認できます：
 
-# ブラウザでhttp://localhost:3030にアクセス
-# dependencies-analysis.jsonファイルが自動的に読み込まれ、グラフが表示される
-```
+- `simple-graph.html` - インタラクティブな依存関係グラフ
+- `cohesion.html` - リポジトリの凝集度分析
+- `issues.html` - 依存関係の問題分析
 
 ## 出力形式
 
@@ -111,8 +109,8 @@ CLIツールは `dependencies-analysis.json` というファイルを生成し�
    - グラフ構造のJSONファイルを生成
 
 2. **可視化フェーズ**:
-   - Spring Bootアプリケーションが起動
-   - 自動的にJSONファイルを読み込み
+   - HTMLファイルをブラウザで開く
+   - JSONファイルを選択して読み込み
    - D3.jsでインタラクティブなグラフを表示
 
 ## フロントエンドテスト

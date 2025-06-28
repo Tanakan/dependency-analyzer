@@ -25,7 +25,6 @@
 
 ### VS Code 拡張機能
 - Java Extension Pack
-- Spring Boot Extension Pack
 - ESLint
 - Prettier
 - Maven for Java
@@ -44,8 +43,8 @@ mvn clean compile
 java -cp target/classes:$(mvn dependency:build-classpath -Dmdep.outputFile=/dev/stdout -q) \
   com.example.dependencies.analyzer.cli.DependencyAnalyzerCLI /path/to/repositories
 
-# Spring Boot起動
-mvn spring-boot:run
+# 静的HTMLファイルを開く
+# ブラウザで src/main/resources/static/simple-graph.html を開く
 ```
 
 ### フロントエンド
@@ -57,7 +56,6 @@ npm start
 ## ポート転送
 
 - `:3000` - React開発サーバー
-- `:3030` - Spring Boot アプリケーション
 
 ## トラブルシューティング
 

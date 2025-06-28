@@ -9,7 +9,7 @@ A powerful tool for analyzing and visualizing dependencies in Maven and Gradle p
 - 📈 **Cohesion Analysis**: Measures repository cohesion based on internal vs external dependencies
 - ⚠️ **Issue Detection**: Identifies circular dependencies, unreferenced projects, and duplicate artifact IDs
 - 🎯 **Smart Filtering**: Filter by individual projects or entire repositories with automatic zoom
-- 🚀 **Spring Boot Web UI**: Modern web interface for easy interaction
+- 🌐 **Static HTML Output**: View results directly in your browser without a server
 
 ## Quick Start
 
@@ -53,19 +53,13 @@ npm install
 
 ### Usage
 
-#### Web Interface (Recommended)
+#### Web Interface
 
-1. Start the Spring Boot application:
-```bash
-mvn spring-boot:run
-```
+After running the CLI to generate the analysis JSON file, you can view the results by opening the HTML files in the `src/main/resources/static` directory in your browser:
 
-2. Open your browser and navigate to:
-```
-http://localhost:3030
-```
-
-3. The application will automatically analyze projects in the included `test-projects` directory
+- `simple-graph.html` - Interactive dependency graph visualization
+- `cohesion.html` - Repository cohesion analysis
+- `issues.html` - Dependency issues analysis
 
 #### Command Line Interface
 
@@ -140,11 +134,6 @@ dependency-analyzer/
     └── ... (30+ example projects)
 ```
 
-## API Endpoints
-
-- `GET /api/dependencies/data` - Get dependency graph data
-- `GET /api/migration/repository-cohesion` - Get repository cohesion analysis
-- `GET /api/issues/analysis` - Get project issues analysis
 
 ## Development
 
@@ -154,17 +143,11 @@ This project includes a complete dev container setup for Visual Studio Code:
 
 - **Java 17** with Maven
 - **Node.js 18** with npm
-- **Pre-installed extensions**: Java Extension Pack, Spring Boot Tools, ESLint, Prettier
-- **Auto port forwarding**: 3000 (React), 3030 (Spring Boot)
+- **Pre-installed extensions**: Java Extension Pack, ESLint, Prettier
+- **Auto port forwarding**: 3000 (React)
 - **Persistent Maven cache** for faster builds
 
 ### Local Development
-
-#### Backend (Spring Boot)
-```bash
-mvn spring-boot:run
-# Runs on http://localhost:3030
-```
 
 #### Frontend (React)
 ```bash
@@ -189,14 +172,14 @@ By default, the CLI outputs analysis results to `./frontend/public/dependencies-
 You can customize the output location using:
 - Command line argument: `java -jar analyzer.jar <dir> <output-file>`
 - System properties: `-Danalyzer.output.directory=<dir> -Danalyzer.output.filename=<file>`
-- Application properties: Edit `src/main/resources/application.properties`
 
 ### Analysis Directory
 
-The application analyzes projects in the `test-projects` directory by default. To analyze a different directory:
+The CLI analyzes the directory you specify as a command line argument:
 
-1. Use the CLI with a custom path
-2. For the web interface, modify the path in `DependencyAnalyzerRunner.java`
+```bash
+java -jar target/dependencies-analyzer-1.0-SNAPSHOT.jar /path/to/your/projects
+```
 
 ## Contributing
 

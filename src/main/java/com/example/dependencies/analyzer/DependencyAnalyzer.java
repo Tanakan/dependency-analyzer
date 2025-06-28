@@ -77,9 +77,8 @@ public class DependencyAnalyzer {
             logger.error("Failed to save analysis data as JSON", e);
         }
         
-        // HTML visualization is now handled by the web interface
-        // No need to generate static HTML file
-        logger.info("Analysis complete. Access the web interface at http://localhost:3030/");
+        // HTML visualization is handled by static HTML files
+        logger.info("Analysis complete. Open src/main/resources/static/simple-graph.html in your browser.");
     }
     
     public List<Path> findGitRepositories(Path rootPath) throws IOException {

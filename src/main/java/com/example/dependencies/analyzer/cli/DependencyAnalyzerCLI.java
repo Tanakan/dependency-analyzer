@@ -681,8 +681,7 @@ public class DependencyAnalyzerCLI {
         System.out.println("Total projects found: " + stats.get("totalProjects"));
         System.out.println("Total in-house dependencies: " + stats.get("totalDependencies"));
         System.out.println("\nTo visualize the results:");
-        System.out.println("1. Run: mvn spring-boot:run");
-        System.out.println("2. Open: http://localhost:3030");
-        System.out.println("3. The JSON file will be automatically loaded from the configured output location");
+        System.out.println("1. Open src/main/resources/static/simple-graph.html in your browser");
+        System.out.println("2. Upload the generated JSON file");
     }
 }
