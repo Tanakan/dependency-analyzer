@@ -34,7 +34,7 @@ java -jar target/dependencies-analyzer-1.0-SNAPSHOT.jar ~/your-projects
 cd frontend
 npm install
 npm start
-# Opens at http://localhost:3000 and automatically loads the analysis
+# Opens at http://localhost:3030 and automatically loads the analysis
 ```
 
 That's it! The React app will automatically load `frontend/public/dependencies-analysis.json` when it starts.
@@ -78,7 +78,7 @@ npm start
 ```
 
 The React app will:
-- Start at http://localhost:3000
+- Start at http://localhost:3030
 - Automatically load the analysis from `public/dependencies-analysis.json`
 - Display an interactive dependency graph
 
@@ -190,7 +190,7 @@ mvn compile exec:java -Dexec.mainClass="com.example.dependencies.analyzer.cli.De
 cd frontend
 npm install
 npm start
-# Opens at http://localhost:3000
+# Opens at http://localhost:3030
 ```
 
 The React frontend provides an alternative modern UI for viewing the analysis results.

@@ -30,7 +30,7 @@
     }
   },
 
-  "forwardPorts": [3000],
+  "forwardPorts": [3030],
   
   "postCreateCommand": "bash .devcontainer/post-create.sh",
   
