@@ -77,8 +77,8 @@ public class DependencyAnalyzer {
             logger.error("Failed to save analysis data as JSON", e);
         }
         
-        // HTML visualization is handled by static HTML files
-        logger.info("Analysis complete. Open src/main/resources/static/simple-graph.html in your browser.");
+        // Visualization is handled by React frontend
+        logger.info("Analysis complete. Run 'cd frontend && npm start' to view results at http://localhost:3030");
     }
     
     public List<Path> findGitRepositories(Path rootPath) throws IOException {

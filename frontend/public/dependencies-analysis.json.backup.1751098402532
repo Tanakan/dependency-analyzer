@@ -1,0 +1,955 @@
+{
+  "nodes" : [ {
+    "id" : "com.example.legacy:legacy-monolith",
+    "name" : "legacy-monolith",
+    "version" : "0.9.5",
+    "group" : "com.example.legacy",
+    "type" : "Maven",
+    "packaging" : "jar",
+    "nodeGroup" : "legacy-monolith"
+  }, {
+    "id" : "com.example.reporting:reporting-dashboard",
+    "name" : "reporting-dashboard",
+    "version" : "1.2.0",
+    "group" : "com.example.reporting",
+    "type" : "Gradle",
+    "packaging" : "war",
+    "nodeGroup" : "reporting-dashboard"
+  }, {
+    "id" : "com.example.mocks:external-apis-mock-parent",
+    "name" : "external-apis-mock-parent",
+    "version" : "1.0.0",
+    "group" : "com.example.mocks",
+    "type" : "Maven",
+    "packaging" : "pom",
+    "nodeGroup" : "external-apis-mock"
+  }, {
+    "id" : "com.example.mocks:mock-shipping",
+    "name" : "mock-shipping",
+    "version" : "1.0.0",
+    "group" : "com.example.mocks",
+    "type" : "Maven",
+    "packaging" : "jar",
+    "nodeGroup" : "external-apis-mock"
+  }, {
+    "id" : "com.example.mocks:mock-payment",
+    "name" : "mock-payment",
+    "version" : "1.0.0",
+    "group" : "com.example.mocks",
+    "type" : "Maven",
+    "packaging" : "jar",
+    "nodeGroup" : "external-apis-mock"
+  }, {
+    "id" : "com.example.mocks:mock-inventory",
+    "name" : "mock-inventory",
+    "version" : "1.0.0",
+    "group" : "com.example.mocks",
+    "type" : "Maven",
+    "packaging" : "jar",
+    "nodeGroup" : "external-apis-mock"
+  }, {
+    "id" : "com.example.nan:overlapping-node-a",
+    "name" : "overlapping-node-a",
+    "version" : "1.0.0",
+    "group" : "com.example.nan",
+    "type" : "Maven",
+    "packaging" : "jar",
+    "nodeGroup" : "nan-edge-case-2"
+  }, {
+    "id" : "com.example.test:testing-framework",
+    "name" : "testing-framework",
+    "version" : "1.2.0",
+    "group" : "com.example.test",
+    "type" : "Maven",
+    "packaging" : "jar",
+    "nodeGroup" : "testing-framework"
+  }, {
+    "id" : "com.example.order:order-api",
+    "name" : "order-api",
+    "version" : "1.0.0",
+    "group" : "com.example.order",
+    "type" : "Gradle",
+    "packaging" : "jar",
+    "nodeGroup" : "order-processing"
+  }, {
+    "id" : "com.example.order:order-core",
+    "name" : "order-core",
+    "version" : "1.0.0",
+    "group" : "com.example.order",
+    "type" : "Gradle",
+    "packaging" : "jar",
+    "nodeGroup" : "order-processing"
+  }, {
+    "id" : "com.example.order:order-persistence",
+    "name" : "order-persistence",
+    "version" : "1.0.0",
+    "group" : "com.example.order",
+    "type" : "Gradle",
+    "packaging" : "jar",
+    "nodeGroup" : "order-processing"
+  }, {
+    "id" : "com.example.order:order-integration-tests",
+    "name" : "order-integration-tests",
+    "version" : "1.0.0",
+    "group" : "com.example.order",
+    "type" : "Gradle",
+    "packaging" : "jar",
+    "nodeGroup" : "order-processing"
+  }, {
+    "id" : "com.example.order:order-processing",
+    "name" : "order-processing",
+    "version" : "1.0.0",
+    "group" : "com.example.order",
+    "type" : "Gradle",
+    "packaging" : "jar",
+    "nodeGroup" : "order-processing"
+  }, {
+    "id" : "com.example.order:order-messaging",
+    "name" : "order-messaging",
+    "version" : "1.0.0",
+    "group" : "com.example.order",
+    "type" : "Gradle",
+    "packaging" : "jar",
+    "nodeGroup" : "order-processing"
+  }, {
+    "id" : "com.example.nan:overlapping-node-b",
+    "name" : "overlapping-node-b",
+    "version" : "1.0.0",
+    "group" : "com.example.nan",
+    "type" : "Maven",
+    "packaging" : "war",
+    "nodeGroup" : "nan-edge-case-3"
+  }, {
+    "id" : "com.example.legacy:legacy-webapp",
+    "name" : "legacy-webapp",
+    "version" : "0.5.0",
+    "group" : "com.example.legacy",
+    "type" : "Maven",
+    "packaging" : "war",
+    "nodeGroup" : "legacy-webapp"
+  }, {
+    "id" : "com.example.complex:complex-service-example",
+    "name" : "complex-service-example",
+    "version" : "1.0.0",
+    "group" : "com.example.complex",
+    "type" : "Gradle",
+    "packaging" : "jar",
+    "nodeGroup" : "complex-service-example"
+  }, {
+    "id" : "com.example:notification-service",
+    "name" : "notification-service",
+    "version" : "1.5.0",
+    "group" : "com.example",
+    "type" : "Gradle",
+    "packaging" : "jar",
+    "nodeGroup" : "notification-service"
+  }, {
+    "id" : "com.example:service-a",
+    "name" : "service-a",
+    "version" : "1.0.0",
+    "group" : "com.example",
+    "type" : "Maven",
+    "packaging" : "jar",
+    "nodeGroup" : "circular-deps-example"
+  }, {
+    "id" : "com.example:circular-deps-example",
+    "name" : "circular-deps-example",
+    "version" : "1.0.0",
+    "group" : "com.example",
+    "type" : "Maven",
+    "packaging" : "pom",
+    "nodeGroup" : "circular-deps-example"
+  }, {
+    "id" : "com.example:service-b",
+    "name" : "service-b",
+    "version" : "1.0.0",
+    "group" : "com.example",
+    "type" : "Maven",
+    "packaging" : "jar",
+    "nodeGroup" : "circular-deps-example"
+  }, {
+    "id" : "com.example:service-c",
+    "name" : "service-c",
+    "version" : "1.0.0",
+    "group" : "com.example",
+    "type" : "Maven",
+    "packaging" : "jar",
+    "nodeGroup" : "circular-deps-example"
+  }, {
+    "id" : "null:no-group-project",
+    "name" : "no-group-project",
+    "version" : "1.0.0",
+    "group" : null,
+    "type" : "Maven",
+    "packaging" : "jar",
+    "nodeGroup" : "no-group-repo"
+  }, {
+    "id" : "com.example.config:config-service#1",
+    "name" : "config-service",
+    "version" : "1.0.0",
+    "group" : "com.example.config",
+    "type" : "Maven",
+    "packaging" : "jar",
+    "nodeGroup" : "config-service-repo2"
+  }, {
+    "id" : "com.example:common-libs",
+    "name" : "common-libs",
+    "version" : "1.0.0",
+    "group" : "com.example",
+    "type" : "Maven",
+    "packaging" : "pom",
+    "nodeGroup" : "common-libs"
+  }, {
+    "id" : "com.example.shared:common-library",
+    "name" : "common-library",
+    "version" : "1.0.0",
+    "group" : "com.example.shared",
+    "type" : "Maven",
+    "packaging" : "jar",
+    "nodeGroup" : "shared-library-v1"
+  }, {
+    "id" : "com.example:ecommerce-api",
+    "name" : "ecommerce-api",
+    "version" : "1.0.0",
+    "group" : "com.example",
+    "type" : "Maven",
+    "packaging" : "jar",
+    "nodeGroup" : "ecommerce-platform"
+  }, {
+    "id" : "com.example:ecommerce-platform",
+    "name" : "ecommerce-platform",
+    "version" : "1.0.0",
+    "group" : "com.example",
+    "type" : "Maven",
+    "packaging" : "pom",
+    "nodeGroup" : "ecommerce-platform"
+  }, {
+    "id" : "com.example:ecommerce-core",
+    "name" : "ecommerce-core",
+    "version" : "1.0.0",
+    "group" : "com.example",
+    "type" : "Maven",
+    "packaging" : "jar",
+    "nodeGroup" : "ecommerce-platform"
+  }, {
+    "id" : "com.example:ecommerce-web",
+    "name" : "ecommerce-web",
+    "version" : "1.0.0",
+    "group" : "com.example",
+    "type" : "Maven",
+    "packaging" : "jar",
+    "nodeGroup" : "ecommerce-platform"
+  }, {
+    "id" : "com.example:payment-service",
+    "name" : "payment-service",
+    "version" : "1.5.0",
+    "group" : "com.example",
+    "type" : "Maven",
+    "packaging" : "jar",
+    "nodeGroup" : "payment-service"
+  }, {
+    "id" : "com.example.gateway:api-gateway-v1",
+    "name" : "api-gateway-v1",
+    "version" : "1.0.0",
+    "group" : "com.example.gateway",
+    "type" : "Gradle",
+    "packaging" : "jar",
+    "nodeGroup" : "api-gateway-v1"
+  }, {
+    "id" : "com.example.self:self-ref-project",
+    "name" : "self-ref-project",
+    "version" : "1.0.0",
+    "group" : "com.example.self",
+    "type" : "Maven",
+    "packaging" : "jar",
+    "nodeGroup" : "self-ref-repo"
+  }, {
+    "id" : "com.example:analytics-collector",
+    "name" : "analytics-collector",
+    "version" : "3.0.0",
+    "group" : "com.example",
+    "type" : "Maven",
+    "packaging" : "jar",
+    "nodeGroup" : "analytics-platform"
+  }, {
+    "id" : "com.example:analytics-processor",
+    "name" : "analytics-processor",
+    "version" : "3.0.0",
+    "group" : "com.example",
+    "type" : "Gradle",
+    "packaging" : "jar",
+    "nodeGroup" : "analytics-platform"
+  }, {
+    "id" : "com.example.included:module-b",
+    "name" : "module-b",
+    "version" : "1.0.0",
+    "group" : "com.example.included",
+    "type" : "Gradle",
+    "packaging" : "jar",
+    "nodeGroup" : "composite-builds"
+  }, {
+    "id" : "com.example.included:module-a",
+    "name" : "module-a",
+    "version" : "1.0.0",
+    "group" : "com.example.included",
+    "type" : "Gradle",
+    "packaging" : "jar",
+    "nodeGroup" : "composite-builds"
+  }, {
+    "id" : "com.example.composite:composite-builds-example",
+    "name" : "composite-builds-example",
+    "version" : "1.0.0",
+    "group" : "com.example.composite",
+    "type" : "Gradle",
+    "packaging" : "jar",
+    "nodeGroup" : "composite-builds"
+  }, {
+    "id" : "com.example.profiles:maven-profiles-example",
+    "name" : "maven-profiles-example",
+    "version" : "1.0.0",
+    "group" : "com.example.profiles",
+    "type" : "Maven",
+    "packaging" : "jar",
+    "nodeGroup" : "maven-profiles-example"
+  }, {
+    "id" : "com.example.admin:admin-portal",
+    "name" : "admin-portal",
+    "version" : "2.0.0",
+    "group" : "com.example.admin",
+    "type" : "Maven",
+    "packaging" : "war",
+    "nodeGroup" : "admin-portal"
+  }, {
+    "id" : "com.example:shared-utils",
+    "name" : "shared-utils",
+    "version" : "1.0.0",
+    "group" : "com.example",
+    "type" : "Maven",
+    "packaging" : "jar",
+    "nodeGroup" : "shared-utils"
+  }, {
+    "id" : "com.example.nan:single-node-project",
+    "name" : "single-node-project",
+    "version" : "1.0.0",
+    "group" : "com.example.nan",
+    "type" : "Maven",
+    "packaging" : "jar",
+    "nodeGroup" : "nan-edge-case-1"
+  }, {
+    "id" : "com.example:microservices-bom",
+    "name" : "microservices-bom",
+    "version" : "1.0.0",
+    "group" : "com.example",
+    "type" : "Maven",
+    "packaging" : "pom",
+    "nodeGroup" : "microservices-bom"
+  }, {
+    "id" : "com.example.diamond:diamond-dependency-example",
+    "name" : "diamond-dependency-example",
+    "version" : "1.0.0",
+    "group" : "com.example.diamond",
+    "type" : "Maven",
+    "packaging" : "jar",
+    "nodeGroup" : "diamond-dependency-example"
+  }, {
+    "id" : "com.example.hybrid:maven-module",
+    "name" : "maven-module",
+    "version" : "1.0.0",
+    "group" : "com.example.hybrid",
+    "type" : "Maven",
+    "packaging" : "jar",
+    "nodeGroup" : "hybrid-project"
+  }, {
+    "id" : "com.example.hybrid:hybrid-project-parent",
+    "name" : "hybrid-project-parent",
+    "version" : "1.0.0",
+    "group" : "com.example.hybrid",
+    "type" : "Maven",
+    "packaging" : "pom",
+    "nodeGroup" : "hybrid-project"
+  }, {
+    "id" : "com.example.hybrid:gradle-module",
+    "name" : "gradle-module",
+    "version" : "1.0.0",
+    "group" : "com.example.hybrid",
+    "type" : "Gradle",
+    "packaging" : "jar",
+    "nodeGroup" : "hybrid-project"
+  }, {
+    "id" : "null:null-dependency-test",
+    "name" : "null-dependency-test",
+    "version" : "1.0.0",
+    "group" : null,
+    "type" : "Maven",
+    "packaging" : "jar",
+    "nodeGroup" : "null-dependency-test"
+  }, {
+    "id" : "com.example.mobile:mobile-backend",
+    "name" : "mobile-backend",
+    "version" : "4.0.0",
+    "group" : "com.example.mobile",
+    "type" : "Maven",
+    "packaging" : "war",
+    "nodeGroup" : "mobile-backend"
+  }, {
+    "id" : "com.example.config:config-service",
+    "name" : "config-service",
+    "version" : "1.0.0",
+    "group" : "com.example.config",
+    "type" : "Maven",
+    "packaging" : "jar",
+    "nodeGroup" : "config-service-repo1"
+  }, {
+    "id" : "com.example.shared:common-library#1",
+    "name" : "common-library",
+    "version" : "2.0.0",
+    "group" : "com.example.shared",
+    "type" : "Maven",
+    "packaging" : "jar",
+    "nodeGroup" : "shared-library-v2"
+  }, {
+    "id" : "com.example.platform:core-common",
+    "name" : "core-common",
+    "version" : "2.0.0",
+    "group" : "com.example.platform",
+    "type" : "Gradle",
+    "packaging" : "jar",
+    "nodeGroup" : "platform-core"
+  }, {
+    "id" : "com.example.platform:core-security",
+    "name" : "core-security",
+    "version" : "2.0.0",
+    "group" : "com.example.platform",
+    "type" : "Gradle",
+    "packaging" : "jar",
+    "nodeGroup" : "platform-core"
+  }, {
+    "id" : "com.example.platform:security-impl",
+    "name" : "security-impl",
+    "version" : "2.0.0",
+    "group" : "com.example.platform",
+    "type" : "Gradle",
+    "packaging" : "jar",
+    "nodeGroup" : "platform-core"
+  }, {
+    "id" : "com.example.platform:security-api",
+    "name" : "security-api",
+    "version" : "2.0.0",
+    "group" : "com.example.platform",
+    "type" : "Gradle",
+    "packaging" : "jar",
+    "nodeGroup" : "platform-core"
+  }, {
+    "id" : "com.example.platform:platform-core",
+    "name" : "platform-core",
+    "version" : "2.0.0",
+    "group" : "com.example.platform",
+    "type" : "Gradle",
+    "packaging" : "jar",
+    "nodeGroup" : "platform-core"
+  }, {
+    "id" : "com.example.platform:data-mongodb",
+    "name" : "data-mongodb",
+    "version" : "2.0.0",
+    "group" : "com.example.platform",
+    "type" : "Gradle",
+    "packaging" : "jar",
+    "nodeGroup" : "platform-core"
+  }, {
+    "id" : "com.example.platform:data-postgresql",
+    "name" : "data-postgresql",
+    "version" : "2.0.0",
+    "group" : "com.example.platform",
+    "type" : "Gradle",
+    "packaging" : "jar",
+    "nodeGroup" : "platform-core"
+  }, {
+    "id" : "com.example.platform:data-redis",
+    "name" : "data-redis",
+    "version" : "2.0.0",
+    "group" : "com.example.platform",
+    "type" : "Gradle",
+    "packaging" : "jar",
+    "nodeGroup" : "platform-core"
+  }, {
+    "id" : "com.example.platform:core-data",
+    "name" : "core-data",
+    "version" : "2.0.0",
+    "group" : "com.example.platform",
+    "type" : "Gradle",
+    "packaging" : "jar",
+    "nodeGroup" : "platform-core"
+  }, {
+    "id" : "com.example.gateway:api-gateway-v2",
+    "name" : "api-gateway-v2",
+    "version" : "2.0.0",
+    "group" : "com.example.gateway",
+    "type" : "Gradle",
+    "packaging" : "jar",
+    "nodeGroup" : "api-gateway-v2"
+  }, {
+    "id" : "com.example.test:nan-test-project",
+    "name" : "nan-test-project",
+    "version" : "1.0.0",
+    "group" : "com.example.test",
+    "type" : "Maven",
+    "packaging" : "jar",
+    "nodeGroup" : "nan-test-repo"
+  }, {
+    "id" : "com.example.cloud:spring-cloud-services",
+    "name" : "spring-cloud-services",
+    "version" : "1.0.0",
+    "group" : "com.example.cloud",
+    "type" : "Maven",
+    "packaging" : "pom",
+    "nodeGroup" : "spring-cloud-services"
+  }, {
+    "id" : "com.example:user-service",
+    "name" : "user-service",
+    "version" : "1.0.0",
+    "group" : "com.example",
+    "type" : "Maven",
+    "packaging" : "jar",
+    "nodeGroup" : "user-service"
+  }, {
+    "id" : "com.example.portal:customer-portal",
+    "name" : "customer-portal",
+    "version" : "3.1.0",
+    "group" : "com.example.portal",
+    "type" : "Gradle",
+    "packaging" : "war",
+    "nodeGroup" : "customer-portal"
+  }, {
+    "id" : "com.example.chain:module-e",
+    "name" : "module-e",
+    "version" : "1.0.0",
+    "group" : "com.example.chain",
+    "type" : "Maven",
+    "packaging" : "jar",
+    "nodeGroup" : "transitive-chain"
+  }, {
+    "id" : "com.example.chain:module-b",
+    "name" : "module-b",
+    "version" : "1.0.0",
+    "group" : "com.example.chain",
+    "type" : "Maven",
+    "packaging" : "jar",
+    "nodeGroup" : "transitive-chain"
+  }, {
+    "id" : "com.example.chain:module-c",
+    "name" : "module-c",
+    "version" : "1.0.0",
+    "group" : "com.example.chain",
+    "type" : "Maven",
+    "packaging" : "jar",
+    "nodeGroup" : "transitive-chain"
+  }, {
+    "id" : "com.example.chain:module-d",
+    "name" : "module-d",
+    "version" : "1.0.0",
+    "group" : "com.example.chain",
+    "type" : "Maven",
+    "packaging" : "jar",
+    "nodeGroup" : "transitive-chain"
+  }, {
+    "id" : "com.example.chain:module-a",
+    "name" : "module-a",
+    "version" : "1.0.0",
+    "group" : "com.example.chain",
+    "type" : "Maven",
+    "packaging" : "jar",
+    "nodeGroup" : "transitive-chain"
+  }, {
+    "id" : "com.example.chain:module-f",
+    "name" : "module-f",
+    "version" : "1.0.0",
+    "group" : "com.example.chain",
+    "type" : "Maven",
+    "packaging" : "jar",
+    "nodeGroup" : "transitive-chain"
+  }, {
+    "id" : "com.example.adapter:legacy-adapter",
+    "name" : "legacy-adapter",
+    "version" : "1.0.0",
+    "group" : "com.example.adapter",
+    "type" : "Maven",
+    "packaging" : "jar",
+    "nodeGroup" : "legacy-adapter"
+  }, {
+    "id" : "com.example:inventory-service",
+    "name" : "inventory-service",
+    "version" : "1.0.0",
+    "group" : "com.example",
+    "type" : "Maven",
+    "packaging" : "jar",
+    "nodeGroup" : "inventory-service"
+  } ],
+  "stats" : {
+    "totalProjects" : 73,
+    "totalDependencies" : 87
+  },
+  "analysisDate" : "Fri Jun 27 17:57:05 JST 2025",
+  "links" : [ {
+    "source" : "com.example.hybrid:maven-module",
+    "target" : "com.example.platform:core-common",
+    "value" : 1
+  }, {
+    "source" : "com.example.hybrid:maven-module",
+    "target" : "com.example.hybrid:gradle-module",
+    "value" : 1
+  }, {
+    "source" : "com.example.cloud:spring-cloud-services",
+    "target" : "com.example.platform:core-common",
+    "value" : 1
+  }, {
+    "source" : "com.example.cloud:spring-cloud-services",
+    "target" : "com.example.platform:security-api",
+    "value" : 1
+  }, {
+    "source" : "com.example.chain:module-f",
+    "target" : "com.example.platform:core-common",
+    "value" : 1
+  }, {
+    "source" : "com.example.gateway:api-gateway-v2",
+    "target" : "com.example.platform:core-security",
+    "value" : 1
+  }, {
+    "source" : "com.example.admin:admin-portal",
+    "target" : "com.example:user-service",
+    "value" : 1
+  }, {
+    "source" : "com.example.admin:admin-portal",
+    "target" : "com.example:common-libs",
+    "value" : 1
+  }, {
+    "source" : "com.example.admin:admin-portal",
+    "target" : "com.example:ecommerce-core",
+    "value" : 1
+  }, {
+    "source" : "com.example.chain:module-e",
+    "target" : "com.example.chain:module-f",
+    "value" : 1
+  }, {
+    "source" : "com.example.chain:module-e",
+    "target" : "com.example.platform:core-common",
+    "value" : 1
+  }, {
+    "source" : "com.example:analytics-processor",
+    "target" : "com.example:analytics-collector",
+    "value" : 1
+  }, {
+    "source" : "com.example:analytics-processor",
+    "target" : "com.example:notification-service",
+    "value" : 1
+  }, {
+    "source" : "com.example:service-c",
+    "target" : "com.example:service-a",
+    "value" : 1
+  }, {
+    "source" : "com.example.gateway:api-gateway-v1",
+    "target" : "com.example.platform:core-security",
+    "value" : 1
+  }, {
+    "source" : "com.example.mobile:mobile-backend",
+    "target" : "com.example.gateway:api-gateway-v2",
+    "value" : 1
+  }, {
+    "source" : "com.example.mobile:mobile-backend",
+    "target" : "com.example:user-service",
+    "value" : 1
+  }, {
+    "source" : "com.example.mobile:mobile-backend",
+    "target" : "com.example:notification-service",
+    "value" : 1
+  }, {
+    "source" : "com.example.mobile:mobile-backend",
+    "target" : "com.example.shared:common-library#1",
+    "value" : 1
+  }, {
+    "source" : "com.example.mobile:mobile-backend",
+    "target" : "com.example.config:config-service#1",
+    "value" : 1
+  }, {
+    "source" : "com.example.chain:module-a",
+    "target" : "com.example.chain:module-b",
+    "value" : 1
+  }, {
+    "source" : "com.example.complex:complex-service-example",
+    "target" : "com.example.gateway:api-gateway-v1",
+    "value" : 1
+  }, {
+    "source" : "com.example.complex:complex-service-example",
+    "target" : "com.example.gateway:api-gateway-v2",
+    "value" : 1
+  }, {
+    "source" : "com.example.complex:complex-service-example",
+    "target" : "com.example.adapter:legacy-adapter",
+    "value" : 1
+  }, {
+    "source" : "com.example.complex:complex-service-example",
+    "target" : "com.example.chain:module-a",
+    "value" : 1
+  }, {
+    "source" : "com.example.complex:complex-service-example",
+    "target" : "com.example.mocks:mock-payment",
+    "value" : 1
+  }, {
+    "source" : "com.example.complex:complex-service-example",
+    "target" : "com.example.mocks:mock-shipping",
+    "value" : 1
+  }, {
+    "source" : "com.example.complex:complex-service-example",
+    "target" : "com.example.test:testing-framework",
+    "value" : 1
+  }, {
+    "source" : "com.example:service-a",
+    "target" : "com.example:service-b",
+    "value" : 1
+  }, {
+    "source" : "com.example.portal:customer-portal",
+    "target" : "com.example:ecommerce-api",
+    "value" : 1
+  }, {
+    "source" : "com.example.portal:customer-portal",
+    "target" : "com.example:payment-service",
+    "value" : 1
+  }, {
+    "source" : "com.example.portal:customer-portal",
+    "target" : "com.example:notification-service",
+    "value" : 1
+  }, {
+    "source" : "com.example.portal:customer-portal",
+    "target" : "com.example:shared-utils",
+    "value" : 1
+  }, {
+    "source" : "com.example:notification-service",
+    "target" : "com.example:user-service",
+    "value" : 1
+  }, {
+    "source" : "com.example:notification-service",
+    "target" : "com.example.shared:common-library#1",
+    "value" : 1
+  }, {
+    "source" : "com.example:notification-service",
+    "target" : "com.example.config:config-service#1",
+    "value" : 1
+  }, {
+    "source" : "com.example.order:order-core",
+    "target" : "com.example:shared-utils",
+    "value" : 1
+  }, {
+    "source" : "com.example.chain:module-d",
+    "target" : "com.example.chain:module-e",
+    "value" : 1
+  }, {
+    "source" : "com.example.chain:module-d",
+    "target" : "com.example.test:testing-framework",
+    "value" : 1
+  }, {
+    "source" : "com.example:user-service",
+    "target" : "com.example:shared-utils",
+    "value" : 1
+  }, {
+    "source" : "com.example:analytics-collector",
+    "target" : "com.example:ecommerce-api",
+    "value" : 1
+  }, {
+    "source" : "com.example.shared:common-library#1",
+    "target" : "com.example:shared-utils",
+    "value" : 1
+  }, {
+    "source" : "com.example.reporting:reporting-dashboard",
+    "target" : "com.example:inventory-service",
+    "value" : 1
+  }, {
+    "source" : "com.example.reporting:reporting-dashboard",
+    "target" : "com.example.order:order-processing",
+    "value" : 1
+  }, {
+    "source" : "com.example.reporting:reporting-dashboard",
+    "target" : "com.example:payment-service",
+    "value" : 1
+  }, {
+    "source" : "com.example:service-b",
+    "target" : "com.example:service-c",
+    "value" : 1
+  }, {
+    "source" : "com.example.included:module-b",
+    "target" : "com.example.platform:core-data",
+    "value" : 1
+  }, {
+    "source" : "com.example.chain:module-b",
+    "target" : "com.example.chain:module-c",
+    "value" : 1
+  }, {
+    "source" : "com.example:ecommerce-api",
+    "target" : "com.example:ecommerce-core",
+    "value" : 1
+  }, {
+    "source" : "com.example:payment-service",
+    "target" : "com.example:user-service",
+    "value" : 1
+  }, {
+    "source" : "com.example:payment-service",
+    "target" : "com.example:shared-utils",
+    "value" : 1
+  }, {
+    "source" : "com.example.nan:overlapping-node-a",
+    "target" : "com.example.nan:overlapping-node-b",
+    "value" : 1
+  }, {
+    "source" : "com.example.mocks:mock-payment",
+    "target" : "com.example.test:testing-framework",
+    "value" : 1
+  }, {
+    "source" : "com.example:inventory-service",
+    "target" : "com.example:shared-utils",
+    "value" : 1
+  }, {
+    "source" : "com.example:inventory-service",
+    "target" : "com.example:payment-service",
+    "value" : 1
+  }, {
+    "source" : "com.example:inventory-service",
+    "target" : "com.example:shared-utils",
+    "value" : 1
+  }, {
+    "source" : "com.example:inventory-service",
+    "target" : "com.example.shared:common-library",
+    "value" : 1
+  }, {
+    "source" : "com.example:inventory-service",
+    "target" : "com.example.config:config-service",
+    "value" : 1
+  }, {
+    "source" : "com.example.included:module-a",
+    "target" : "com.example.included:module-b",
+    "value" : 1
+  }, {
+    "source" : "com.example.chain:module-c",
+    "target" : "com.example.chain:module-d",
+    "value" : 1
+  }, {
+    "source" : "com.example.test:testing-framework",
+    "target" : "com.example.platform:core-common",
+    "value" : 1
+  }, {
+    "source" : "com.example.hybrid:gradle-module",
+    "target" : "com.example.platform:core-security",
+    "value" : 1
+  }, {
+    "source" : "com.example.config:config-service",
+    "target" : "com.example.platform:core-common",
+    "value" : 1
+  }, {
+    "source" : "com.example.config:config-service#1",
+    "target" : "com.example.platform:core-common",
+    "value" : 1
+  }, {
+    "source" : "com.example.mocks:mock-inventory",
+    "target" : "com.example.gateway:api-gateway-v2",
+    "value" : 1
+  }, {
+    "source" : "com.example.mocks:mock-inventory",
+    "target" : "com.example.adapter:legacy-adapter",
+    "value" : 1
+  }, {
+    "source" : "com.example.nan:overlapping-node-b",
+    "target" : "com.example.nan:overlapping-node-a",
+    "value" : 1
+  }, {
+    "source" : "com.example.legacy:legacy-webapp",
+    "target" : "com.example.legacy:legacy-monolith",
+    "value" : 1
+  }, {
+    "source" : "com.example.legacy:legacy-webapp",
+    "target" : "com.example.adapter:legacy-adapter",
+    "value" : 1
+  }, {
+    "source" : "com.example.composite:composite-builds-example",
+    "target" : "com.example.included:module-a",
+    "value" : 1
+  }, {
+    "source" : "com.example.composite:composite-builds-example",
+    "target" : "com.example.included:module-b",
+    "value" : 1
+  }, {
+    "source" : "com.example.composite:composite-builds-example",
+    "target" : "com.example.platform:core-common",
+    "value" : 1
+  }, {
+    "source" : "com.example.composite:composite-builds-example",
+    "target" : "com.example.platform:security-api",
+    "value" : 1
+  }, {
+    "source" : "com.example.diamond:diamond-dependency-example",
+    "target" : "com.example.chain:module-a",
+    "value" : 1
+  }, {
+    "source" : "com.example.diamond:diamond-dependency-example",
+    "target" : "com.example.platform:core-common",
+    "value" : 1
+  }, {
+    "source" : "com.example.diamond:diamond-dependency-example",
+    "target" : "com.example.adapter:legacy-adapter",
+    "value" : 1
+  }, {
+    "source" : "com.example.diamond:diamond-dependency-example",
+    "target" : "com.example.profiles:maven-profiles-example",
+    "value" : 1
+  }, {
+    "source" : "com.example.order:order-api",
+    "target" : "com.example:user-service",
+    "value" : 1
+  }, {
+    "source" : "com.example.order:order-api",
+    "target" : "com.example:payment-service",
+    "value" : 1
+  }, {
+    "source" : "com.example.order:order-api",
+    "target" : "com.example:inventory-service",
+    "value" : 1
+  }, {
+    "source" : "com.example:ecommerce-web",
+    "target" : "com.example:ecommerce-api",
+    "value" : 1
+  }, {
+    "source" : "com.example.adapter:legacy-adapter",
+    "target" : "com.example.legacy:legacy-monolith",
+    "value" : 1
+  }, {
+    "source" : "com.example.adapter:legacy-adapter",
+    "target" : "com.example.platform:core-common",
+    "value" : 1
+  }, {
+    "source" : "com.example.self:self-ref-project",
+    "target" : "com.example.self:self-ref-project",
+    "value" : 1
+  }, {
+    "source" : "null:null-dependency-test",
+    "target" : "null:no-group-project",
+    "value" : 1
+  }, {
+    "source" : "com.example.mocks:mock-shipping",
+    "target" : "com.example.mocks:mock-payment",
+    "value" : 1
+  }, {
+    "source" : "com.example.mocks:mock-shipping",
+    "target" : "com.example.gateway:api-gateway-v1",
+    "value" : 1
+  } ],
+  "version" : "1.0",
+  "issues" : {
+    "duplicateArtifactIds" : {
+      "config-service" : [ "com.example.config:config-service#1", "com.example.config:config-service" ],
+      "module-b" : [ "com.example.included:module-b", "com.example.chain:module-b" ],
+      "module-a" : [ "com.example.included:module-a", "com.example.chain:module-a" ],
+      "common-library" : [ "com.example.shared:common-library", "com.example.shared:common-library#1" ]
+    },
+    "unreferencedProjects" : [ "com.example.reporting:reporting-dashboard", "com.example.mocks:external-apis-mock-parent", "com.example.mocks:mock-inventory", "com.example.order:order-api", "com.example.order:order-core", "com.example.order:order-persistence", "com.example.order:order-integration-tests", "com.example.order:order-messaging", "com.example.legacy:legacy-webapp", "com.example.complex:complex-service-example", "com.example:circular-deps-example", "com.example:ecommerce-platform", "com.example:ecommerce-web", "com.example:analytics-processor", "com.example.composite:composite-builds-example", "com.example.admin:admin-portal", "com.example.nan:single-node-project", "com.example:microservices-bom", "com.example.diamond:diamond-dependency-example", "com.example.hybrid:maven-module", "com.example.hybrid:hybrid-project-parent", "null:null-dependency-test", "com.example.mobile:mobile-backend", "com.example.platform:security-impl", "com.example.platform:platform-core", "com.example.platform:data-mongodb", "com.example.platform:data-postgresql", "com.example.platform:data-redis", "com.example.test:nan-test-project", "com.example.cloud:spring-cloud-services", "com.example.portal:customer-portal" ],
+    "circularReferences" : [ [ "com.example.nan:overlapping-node-a:1.0.0", "com.example.nan:overlapping-node-b:1.0.0", "com.example.nan:overlapping-node-a:1.0.0" ], [ "com.example:service-a:1.0.0", "com.example:service-b:1.0.0", "com.example:service-c:1.0.0", "com.example:service-a:1.0.0" ], [ "com.example.self:self-ref-project:1.0.0", "com.example.self:self-ref-project:1.0.0" ] ],
+    "duplicateGAVs" : {
+      "com.example.config:config-service:1.0.0" : [ "com.example.config:config-service#1", "com.example.config:config-service" ]
+    }
+  }
+}
