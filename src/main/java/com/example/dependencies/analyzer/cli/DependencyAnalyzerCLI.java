@@ -108,19 +108,24 @@ public class DependencyAnalyzerCLI {
     }
     
     public static void main(String[] args) {
-        if (args.length != 1) {
-            System.err.println("Usage: java -jar dependencies-analyzer.jar <directory-path>");
+        if (args.length < 1 || args.length > 2) {
+            System.err.println("Usage: java -jar dependencies-analyzer.jar <directory-path> [output-file]");
             System.err.println("Options:");
-            System.err.println("  -Dlogging.level.root=<LEVEL>  Set root log level (TRACE, DEBUG, INFO, WARN, ERROR, OFF)");
+            System.err.println("  directory-path                  Directory to analyze");
+            System.err.println("  output-file                     Output JSON file (default: dependencies-analysis.json)");
+            System.err.println("  -Danalyzer.output.directory=DIR Set output directory (default: ./frontend/public)");
+            System.err.println("  -Danalyzer.output.filename=FILE Set output filename (default: dependencies-analysis.json)");
+            System.err.println("  -Dlogging.level.root=<LEVEL>    Set root log level (TRACE, DEBUG, INFO, WARN, ERROR, OFF)");
             System.err.println("  -Dlogging.level.com.example.dependencies.analyzer=<LEVEL>  Set package log level");
             System.exit(1);
         }
         
         String directoryPath = args[0];
+        String outputFile = args.length > 1 ? args[1] : null;
         DependencyAnalyzerCLI analyzer = new DependencyAnalyzerCLI();
         
         try {
-            analyzer.analyzeDependencies(directoryPath);
+            analyzer.analyzeDependencies(directoryPath, outputFile);
         } catch (Exception e) {
             logger.error("Failed to analyze dependencies", e);
             System.exit(1);
@@ -128,6 +133,10 @@ public class DependencyAnalyzerCLI {
     }
     
     public void analyzeDependencies(String directoryPath) throws IOException {
+        analyzeDependencies(directoryPath, null);
+    }
+    
+    public void analyzeDependencies(String directoryPath, String outputFile) throws IOException {
         // Expand tilde if present
         if (directoryPath.startsWith("~")) {
             String homeDir = System.getProperty("user.home");
@@ -161,7 +170,7 @@ public class DependencyAnalyzerCLI {
         
         // Generate and save analysis result
         Map<String, Object> analysisResult = generateAnalysisResult(allProjects, inHouseDependencies);
-        saveAnalysisResult(analysisResult);
+        saveAnalysisResult(analysisResult, outputFile);
         
         // Print summary
         printSummary(analysisResult);
@@ -625,9 +634,43 @@ public class DependencyAnalyzerCLI {
     }
     
     private void saveAnalysisResult(Map<String, Object> analysisResult) throws IOException {
-        File outputFile = new File("dependencies-analysis.json");
-        mapper.writeValue(outputFile, analysisResult);
-        logger.info("Analysis result saved to: {}", outputFile.getAbsolutePath());
+        saveAnalysisResult(analysisResult, null);
+    }
+    
+    private void saveAnalysisResult(Map<String, Object> analysisResult, String outputFile) throws IOException {
+        File targetFile;
+        
+        if (outputFile != null) {
+            // Use explicit output file path
+            targetFile = new File(outputFile);
+        } else {
+            // Use configuration from system properties or defaults
+            String outputDir = System.getProperty("analyzer.output.directory", "./frontend/public");
+            String outputFilename = System.getProperty("analyzer.output.filename", "dependencies-analysis.json");
+            
+            // Create output directory if it doesn't exist
+            File dir = new File(outputDir);
+            if (!dir.exists()) {
+                boolean created = dir.mkdirs();
+                if (created) {
+                    logger.info("Created output directory: {}", dir.getAbsolutePath());
+                }
+            }
+            
+            targetFile = new File(dir, outputFilename);
+            
+            // Handle backup if enabled
+            String createBackup = System.getProperty("analyzer.output.create-backup", "true");
+            if ("true".equalsIgnoreCase(createBackup) && targetFile.exists()) {
+                String backupName = outputFilename + ".backup." + System.currentTimeMillis();
+                File backupFile = new File(dir, backupName);
+                Files.copy(targetFile.toPath(), backupFile.toPath());
+                logger.info("Created backup: {}", backupFile.getAbsolutePath());
+            }
+        }
+        
+        mapper.writeValue(targetFile, analysisResult);
+        logger.info("Analysis result saved to: {}", targetFile.getAbsolutePath());
     }
     
     private void printSummary(Map<String, Object> analysisResult) {
@@ -637,10 +680,9 @@ public class DependencyAnalyzerCLI {
         System.out.println("\n=== Analysis Summary ===");
         System.out.println("Total projects found: " + stats.get("totalProjects"));
         System.out.println("Total in-house dependencies: " + stats.get("totalDependencies"));
-        System.out.println("\nAnalysis result saved to: dependencies-analysis.json");
         System.out.println("\nTo visualize the results:");
         System.out.println("1. Run: mvn spring-boot:run");
         System.out.println("2. Open: http://localhost:8080");
-        System.out.println("3. Upload the dependencies-analysis.json file");
+        System.out.println("3. The JSON file will be automatically loaded from the configured output location");
     }
 }

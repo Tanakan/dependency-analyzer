@@ -15,10 +15,24 @@ A powerful tool for analyzing and visualizing dependencies in Maven and Gradle p
 
 ### Prerequisites
 
-- Java 11 or higher
+- Java 17 or higher
 - Maven 3.6+
+- Node.js 18+ (for frontend development)
 
-### Installation
+### Option 1: Dev Container (Recommended for Development)
+
+If you have Visual Studio Code and Docker:
+
+1. Clone the repository:
+```bash
+git clone https://github.com/Tanakan/dependency-analyzer.git
+cd dependency-analyzer
+```
+
+2. Open in VS Code and select "Reopen in Container" when prompted
+3. Everything will be set up automatically!
+
+### Option 2: Local Installation
 
 1. Clone the repository:
 ```bash
@@ -29,6 +43,12 @@ cd dependency-analyzer
 2. Build the project:
 ```bash
 mvn clean package
+```
+
+3. Install frontend dependencies:
+```bash
+cd frontend
+npm install
 ```
 
 ### Usage
@@ -50,14 +70,25 @@ http://localhost:8080
 #### Command Line Interface
 
 ```bash
-# Analyze a directory and generate dependency-graph.html
+# Analyze a directory (output to ./frontend/public/dependencies-analysis.json by default)
 java -jar target/dependencies-analyzer-1.0-SNAPSHOT.jar <directory-path>
+
+# Specify custom output file
+java -jar target/dependencies-analyzer-1.0-SNAPSHOT.jar <directory-path> <output-file>
 
 # Example: Analyze the included test-projects
 java -jar target/dependencies-analyzer-1.0-SNAPSHOT.jar test-projects
+
+# Example: Output to custom location
+java -jar target/dependencies-analyzer-1.0-SNAPSHOT.jar test-projects ./output/analysis.json
+
+# Configure output directory via system properties
+java -Danalyzer.output.directory=./custom-output \
+     -Danalyzer.output.filename=my-analysis.json \
+     -jar target/dependencies-analyzer-1.0-SNAPSHOT.jar test-projects
 ```
 
-This will generate a `dependency-graph.html` file that can be opened in your browser.
+The analysis results are saved as JSON and can be visualized using the web interface.
 
 ## Web Interface Features
 
@@ -115,12 +146,57 @@ dependency-analyzer/
 - `GET /api/migration/repository-cohesion` - Get repository cohesion analysis
 - `GET /api/issues/analysis` - Get project issues analysis
 
+## Development
+
+### Dev Container
+
+This project includes a complete dev container setup for Visual Studio Code:
+
+- **Java 17** with Maven
+- **Node.js 18** with npm
+- **Pre-installed extensions**: Java Extension Pack, Spring Boot Tools, ESLint, Prettier
+- **Auto port forwarding**: 3000 (React), 8080 (Spring Boot)
+- **Persistent Maven cache** for faster builds
+
+### Local Development
+
+#### Backend (Spring Boot)
+```bash
+mvn spring-boot:run
+# Runs on http://localhost:8080
+```
+
+#### Frontend (React)
+```bash
+cd frontend
+npm start
+# Runs on http://localhost:3000
+```
+
+#### CLI Analysis
+```bash
+mvn clean compile
+java -cp target/classes:$(mvn dependency:build-classpath -Dmdep.outputFile=/dev/stdout -q) \
+  com.example.dependencies.analyzer.cli.DependencyAnalyzerCLI /path/to/repositories
+```
+
 ## Configuration
+
+### Output Location
+
+By default, the CLI outputs analysis results to `./frontend/public/dependencies-analysis.json` so the frontend can automatically load them.
+
+You can customize the output location using:
+- Command line argument: `java -jar analyzer.jar <dir> <output-file>`
+- System properties: `-Danalyzer.output.directory=<dir> -Danalyzer.output.filename=<file>`
+- Application properties: Edit `src/main/resources/application.properties`
+
+### Analysis Directory
 
 The application analyzes projects in the `test-projects` directory by default. To analyze a different directory:
 
-1. Modify the path in `DependencyAnalyzerRunner.java`
-2. Or use the CLI with a custom path
+1. Use the CLI with a custom path
+2. For the web interface, modify the path in `DependencyAnalyzerRunner.java`
 
 ## Contributing
 
